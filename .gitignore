@@ -1,0 +1,16 @@
+# Archivo de variables de entorno (credenciales)
+.env
+.env.*
+
+# Archivos de tokens generados dinámicamente
+data/tokens_*.json
+
+# Logs y bases de datos locales
+*.log
+data/*.json
+
+# Entornos virtuales de Python y caché
+__pycache__/
+*.pyc
+venv/
+.venv/

@@ -14,3 +14,7 @@ __pycache__/
 *.pyc
 venv/
 .venv/
+
+# Archivos generados
+*.html
+test_*.py

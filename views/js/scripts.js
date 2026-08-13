@@ -1,5 +1,53 @@
 const ventasData = [
     {
+        "venta_id": "2000017913415556",
+        "fecha": "2026-08-13",
+        "cliente": "JULIAN_42448",
+        "estado_rotulo": "Gris",
+        "texto_rotulo": "Retiro en local",
+        "numero_guia": "Sin Tracking",
+        "detalles": "",
+        "items": [
+            {
+                "sku": "870103809",
+                "variante": "Color: Negro, Talle: Único",
+                "cantidad": 1
+            }
+        ]
+    },
+    {
+        "venta_id": "2000014460510469",
+        "fecha": "2026-08-10",
+        "cliente": "SANCHEZSILVINA54",
+        "estado_rotulo": "Gris",
+        "texto_rotulo": "Retiro en local",
+        "numero_guia": "Sin Tracking",
+        "detalles": "",
+        "items": [
+            {
+                "sku": "8703504",
+                "variante": "Orientación: Diestro, Orientación de la mano: Diestro, Color: Negro",
+                "cantidad": 1
+            }
+        ]
+    },
+    {
+        "venta_id": "2000017839097302",
+        "fecha": "2026-08-09",
+        "cliente": "ARIEL1920",
+        "estado_rotulo": "Gris",
+        "texto_rotulo": "Retiro en local",
+        "numero_guia": "Sin Tracking",
+        "detalles": "",
+        "items": [
+            {
+                "sku": "510116506",
+                "variante": "Color: Acu, Diseño de la tela: Camuflado, Talle: XXL",
+                "cantidad": 1
+            }
+        ]
+    },
+    {
         "venta_id": "2000014411262527",
         "fecha": "2026-08-07",
         "cliente": "RUIZYANELA20230702201024",
@@ -27,22 +75,6 @@ const ventasData = [
             {
                 "sku": "510186305",
                 "variante": "Color: Negro, Diseño de la tela: Liso, Talle: XL",
-                "cantidad": 1
-            }
-        ]
-    },
-    {
-        "venta_id": "2000014378421393",
-        "fecha": "2026-08-05",
-        "cliente": "EUFE7456751",
-        "estado_rotulo": "Gris",
-        "texto_rotulo": "Retiro en local",
-        "numero_guia": "Sin Tracking",
-        "detalles": "",
-        "items": [
-            {
-                "sku": "260100303",
-                "variante": "Talle: M, Color: Negro",
                 "cantidad": 1
             }
         ]
@@ -91,22 +123,6 @@ const ventasData = [
             {
                 "sku": "8306100",
                 "variante": "Color: Negro, Talle: Único",
-                "cantidad": 1
-            }
-        ]
-    },
-    {
-        "venta_id": "2000014326088921",
-        "fecha": "2026-08-02",
-        "cliente": "CATALANO.FRANCO",
-        "estado_rotulo": "Gris",
-        "texto_rotulo": "Retiro en local",
-        "numero_guia": "Sin Tracking",
-        "detalles": "",
-        "items": [
-            {
-                "sku": "510105204",
-                "variante": "Talle: L, Diseño de la tela: Liso, Color: Negro",
                 "cantidad": 1
             }
         ]
@@ -219,22 +235,6 @@ const ventasData = [
             {
                 "sku": "112072446",
                 "variante": "Color: Negro, Diseño de la tela: Liso, Talle: 46",
-                "cantidad": 1
-            }
-        ]
-    },
-    {
-        "venta_id": "2000014232292417",
-        "fecha": "2026-07-28",
-        "cliente": "CAROLINALIZ20220328151646",
-        "estado_rotulo": "Gris",
-        "texto_rotulo": "Retiro en local",
-        "numero_guia": "Sin Tracking",
-        "detalles": "",
-        "items": [
-            {
-                "sku": "820511837",
-                "variante": "Color: Negro, Talle: 37",
                 "cantidad": 1
             }
         ]
@@ -2413,16 +2413,16 @@ function cargarTabla() {
             cantidadesHtml += `<li class="item-row">${item.cantidad}</li>`;
         });
         tbody.innerHTML += `<tr>
-                    <td><input type="checkbox" class="row-checkbox" value="${index}" onchange="actualizarBoton()"></td>
-                    <td>${v.fecha}</td>
-                    <td><strong>${v.venta_id}</strong></td>
-                    <td><strong>${v.cliente}</strong></td>
-                    <td>${skusHtml}</ul></td>
-                    <td>${variantesHtml}</ul></td>
-                    <td>${cantidadesHtml}</ul></td>
-                    <td>${v.detalles || ''}</td>
-                    <td><span class="badge badge-${v.estado_rotulo}">${v.texto_rotulo}</span></td>
-                </tr>`;
+            <td><input type="checkbox" class="row-checkbox" value="${index}" onchange="actualizarBoton()"></td>
+            <td>${v.fecha}</td>
+            <td><strong>${v.venta_id}</strong></td>
+            <td><strong>${v.cliente}</strong></td>
+            <td>${skusHtml}</ul></td>
+            <td>${variantesHtml}</ul></td>
+            <td>${cantidadesHtml}</ul></td>
+            <td>${v.detalles || ''}</td>
+            <td><span class="badge badge-${v.estado_rotulo}">${v.texto_rotulo}</span></td>
+        </tr>`;
     });
 }
 
@@ -2461,5 +2461,4 @@ function generarCSV() {
     document.body.removeChild(link);
 }
 
-// Carga inicial al ejecutar la página
 document.addEventListener('DOMContentLoaded', cargarTabla);

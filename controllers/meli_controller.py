@@ -22,7 +22,7 @@ class MeLiController:
         self.headers = {"Authorization": f"Bearer {self.access_token}"}
 
     def obtener_todas_las_ordenes_recientes(
-        self, limite_total: int = 150
+        self, limite_total: int = 50
     ) -> List[dict]:
         """
         Obtiene las órdenes más recientes del vendedor aplicando paginación
@@ -72,7 +72,7 @@ class MeLiController:
         # Nos aseguramos de devolver solo hasta el límite deseado
         return todas_las_ordenes[:limite_total]
 
-    def procesar_ventas_filtradas(self, limite_peticion: int = 150) -> List[Order]:
+    def procesar_ventas_filtradas(self, limite_peticion: int = 50) -> List[Order]:
         """
         Descarga, mapea y filtra las ventas conservando ÚNICAMENTE
         las que están en estados de interés.

@@ -66,7 +66,7 @@ def ejecutar():
             access_token=token, account_name=cuenta_config["nombre"]
         )
         ordenes_filtradas = controller.procesar_ventas_filtradas(
-            limite_peticion=150
+            limite_peticion=50
         )
 
         # 4. VISTA: Exportación JSON e HTML

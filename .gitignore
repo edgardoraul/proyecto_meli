@@ -18,3 +18,4 @@ venv/
 # Archivos generados
 *.html
 test_*.py
+views/js/temp_data.js

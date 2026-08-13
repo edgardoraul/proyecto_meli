@@ -1,15 +1,14 @@
 """
 views/html_view.py
 ------------------
-Vista encargada de generar el archivo 'index.html' con la estética limpia
-y renderizar los datos procesados mediante views/css/style.css y views/js/scripts.js.
+Vista encargada de generar el archivo 'index.html' con la estética limpia.
+Genera los datos en un archivo JS temporal y delega la lógica a views/js/scripts.js.
 """
 
 from datetime import datetime
 import json
 import logging
 from pathlib import Path
-
 from typing import List
 
 from models.order import Order
@@ -18,18 +17,15 @@ logger = logging.getLogger(__name__)
 
 
 class HTMLView:
-    """Genera la interfaz de tabla interactiva en base al diseño provisto."""
-
     def __init__(
         self,
         output_file: str = "index.html",
-        js_file: str = "views/js/scripts.js",
+        data_file: str = "views/js/temp_data.js",
     ):
         self.output_file = Path(output_file)
-        self.js_file = Path(js_file)
+        self.data_file = Path(data_file)
 
     def _mapear_color_badge(self, estado: str) -> str:
-        """Mapea las etiquetas operativas a los colores de badges especificados."""
         colores = {
             "Imprimir Rótulo": "NaranjaClaro",
             "Rótulo Impreso": "Naranja",
@@ -39,11 +35,10 @@ class HTMLView:
         return colores.get(estado, "Gris")
 
     def exportar_js_data(self, ordenes: List[Order]) -> None:
-        """Inyecta los datos reales procesados en el script JS conservando las funciones de tabla."""
+        """Inyecta ÚNICAMENTE los datos procesados en un script JS temporal."""
         ventas_list = []
 
         for orden in ordenes:
-            # Formateo de fecha AAAA-MM-DD
             fecha_fmt = (
                 orden.date_created.split("T")[0]
                 if "T" in orden.date_created
@@ -73,86 +68,21 @@ class HTMLView:
             )
 
         json_data_str = json.dumps(ventas_list, indent=4, ensure_ascii=False)
+        js_content = f"const ventasData = {json_data_str};\n"
 
-        # Leemos el código JS base y anteponemos la variable con la data fresca
-        base_js_code = """
-function cargarTabla() {
-    const tbody = document.getElementById('tablaVentas');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    ventasData.forEach((v, index) => {
-        let skusHtml = '<ul class="item-list">', variantesHtml = '<ul class="item-list">', cantidadesHtml = '<ul class="item-list">';
-        v.items.forEach(item => {
-            skusHtml += `<li class="item-row"><strong>${item.sku}</strong></li>`;
-            variantesHtml += `<li class="item-row">${item.variante}</li>`;
-            cantidadesHtml += `<li class="item-row">${item.cantidad}</li>`;
-        });
-        tbody.innerHTML += `<tr>
-            <td><input type="checkbox" class="row-checkbox" value="${index}" onchange="actualizarBoton()"></td>
-            <td>${v.fecha}</td>
-            <td><strong>${v.venta_id}</strong></td>
-            <td><strong>${v.cliente}</strong></td>
-            <td>${skusHtml}</ul></td>
-            <td>${variantesHtml}</ul></td>
-            <td>${cantidadesHtml}</ul></td>
-            <td>${v.detalles || ''}</td>
-            <td><span class="badge badge-${v.estado_rotulo}">${v.texto_rotulo}</span></td>
-        </tr>`;
-    });
-}
+        self.data_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.data_file, "w", encoding="utf-8") as f:
+            f.write(js_content)
 
-function toggleSelectAll() {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
-    const master = document.getElementById('masterCheckbox');
-    const nuevoEstado = !Array.from(checkboxes).every(cb => cb.checked);
-    checkboxes.forEach(cb => cb.checked = nuevoEstado);
-    if (master) master.checked = nuevoEstado;
-    actualizarBoton();
-}
-
-function actualizarBoton() {
-    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
-    const btn = document.getElementById('btnCSV');
-    if (!btn) return;
-    btn.disabled = checkboxes.length === 0;
-    btn.classList.toggle('active', checkboxes.length > 0);
-}
-
-function generarCSV() {
-    const seleccionados = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value));
-    let csvLines = [["ID Venta / Carrito", "Cliente", "SKU", "Variante", "Cantidad", "Detalles", "Numero Guia / Retiro"].join(";")];
-    seleccionados.forEach(idx => {
-        const v = ventasData[idx];
-        v.items.forEach(item => {
-            csvLines.push([`"'${v.venta_id}"`, `"${v.cliente}"`, `"${item.sku}"`, `"${item.variante}"`, item.cantidad, `"${v.detalles || ''}"`, `"${v.numero_guia}"`].join(";"));
-        });
-    });
-    const encodedUri = encodeURI("data:text/csv;charset=utf-8,\\uFEFF" + csvLines.join("\\n"));
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "planilla_ventas_seleccionadas.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-document.addEventListener('DOMContentLoaded', cargarTabla);
-"""
-        js_full_content = f"const ventasData = {json_data_str};\n{base_js_code}"
-
-        self.js_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.js_file, "w", encoding="utf-8") as f:
-            f.write(js_full_content)
-
-        logger.info(f"Datos exportados a {self.js_file}")
+        logger.info(f"Datos exportados a {self.data_file}")
 
     def generar_reporte(
         self, account_name: str, ordenes: List[Order], abrir_navegador: bool = True
     ) -> None:
-        """Genera el HTML usando la plantilla del diseño suministrado."""
         self.exportar_js_data(ordenes)
 
         fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+        data_path_str = self.data_file.as_posix()
 
         html_content = f"""<!DOCTYPE html>
 <html lang="es">
@@ -190,6 +120,9 @@ document.addEventListener('DOMContentLoaded', cargarTabla);
         <tbody id="tablaVentas"></tbody>
     </table>
 
+    <!-- Primero se cargan los datos crudos -->
+    <script src="{data_path_str}"></script>
+    <!-- Luego se carga la lógica del negocio -->
     <script src="views/js/scripts.js"></script>
 </body>
 </html>
@@ -202,5 +135,4 @@ document.addEventListener('DOMContentLoaded', cargarTabla);
 
         if abrir_navegador:
             import webbrowser
-
             webbrowser.open(self.output_file.resolve().as_uri())

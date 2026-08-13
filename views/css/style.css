@@ -68,12 +68,11 @@ th {
     color: white;
 }
 
-/* Entre renglones del mismo carrito no hay línea */
-tbody tr td {
-    border-bottom: none;
+/* Línea divisoria marcada solo en el 1º producto de la venta/carrito */
+tr.borde-separador td {
+    border-top: 1px solid #666;
 }
 
-/* Línea divisoria marcada solo en el último producto de la venta/carrito */
 tbody tr.fin-carrito td {
     border-bottom: 2px solid #cbd5e1;
 }
@@ -105,4 +104,12 @@ tbody tr.fin-carrito td {
     background-color: #ffe8cc;
     color: #d97706;
     border: 1px solid #fbd38d;
+}
+.item-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.item-row {
+   list-style: none; 
 }

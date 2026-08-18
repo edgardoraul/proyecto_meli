@@ -22,7 +22,7 @@ class MeLiController:
         self.headers = {"Authorization": f"Bearer {self.access_token}"}
 
     def obtener_todas_las_ordenes_recientes(
-        self, limite_total: int = 50
+        self, limite_total: int = 20
     ) -> List[dict]:
         """
         Obtiene las órdenes más recientes del vendedor aplicando paginación
@@ -35,7 +35,7 @@ class MeLiController:
 
         todas_las_ordenes = []
         offset = 0
-        limit_por_pagina = 50
+        limit_por_pagina = 20
 
         logger.info(
             f"Buscando hasta {limite_total} órdenes recientes para [{self.account_name}]..."
@@ -70,49 +70,43 @@ class MeLiController:
                 break
 
         # Nos aseguramos de devolver solo hasta el límite deseado
+        print(res)
         return todas_las_ordenes[:limite_total]
 
-    def procesar_ventas_filtradas(self, limite_peticion: int = 50) -> List[Order]:
-        """
-        Descarga, mapea y filtra las ventas conservando ÚNICAMENTE
-        las que están en estados de interés.
-        """
-        raw_orders = self.obtener_todas_las_ordenes_recientes(
-            limite_total=limite_peticion
-        )
+    def procesar_ventas_filtradas(self, limite_peticion: int = 20) -> List[Order]:
+        raw_orders = self.obtener_todas_las_ordenes_recientes(limite_total=limite_peticion)
 
-        # Aquí integrarás las llamadas a shipments y notas de tu lógica existente
-        # (vía requests o aiohttp en paralelo para que sea ultra rápido)
-        shipments_map = {}  # {shipment_id: datos_shipment}
-        notes_map = {}  # {order_id: nota_texto}
-
+        shipments_map = {}
+        notes_map = {} 
         ordenes_filtradas = []
+
+        logger.info("Descargando historial de envíos de la API...")
 
         for raw_order in raw_orders:
             order_id = str(raw_order["id"])
-            shipment_id = (
-                str(raw_order.get("shipping", {}).get("id"))
-                if raw_order.get("shipping", {}).get("id")
-                else None
-            )
+            shipment_id = str(raw_order.get("shipping", {}).get("id", ""))
+
+            # ---- LÓGICA AGREGADA PARA QUE EL MODELO RECIBA EL HISTORIAL ----
+            if shipment_id:
+                url_shipment = f"https://api.mercadolibre.com/shipments/{shipment_id}"
+                res_ship = requests.get(url_shipment, headers=self.headers)
+                if res_ship.status_code == 200:
+                    shipments_map[shipment_id] = res_ship.json()
+
+            # (Opcional: Aquí sumarías la petición requests.get para las notas en notes_map)
+            # ----------------------------------------------------------------
 
             shipment_data = shipments_map.get(shipment_id) if shipment_id else None
             note_text = notes_map.get(order_id, "")
 
-            # Creamos el objeto usando el modelo
             orden = Order(
                 raw_order=raw_order,
                 shipment_data=shipment_data,
                 note_text=note_text,
             )
 
-            # FILTRO: Solo agregamos la orden si está en los 4 estados que te interesan
             if orden.es_estado_de_interes():
                 ordenes_filtradas.append(orden)
 
-        logger.info(
-            f"Se obtuvieron {len(ordenes_filtradas)} órdenes útiles de un total de {len(raw_orders)} analizadas."
-        )
-
-        # Retornamos ordenadas en forma descendente por fecha/id (ya vienen ordenadas de la API por date_desc)
+        logger.info(f"Se obtuvieron {len(ordenes_filtradas)} órdenes útiles.")
         return ordenes_filtradas

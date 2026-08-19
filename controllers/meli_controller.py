@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import logging
 from pathlib import Path
@@ -16,7 +17,7 @@ class MeLiController:
 
     def _obtener_user_id(self) -> int:
         print("  ├─ [1/4] Obteniendo ID del usuario vendedor...")
-        res = requests.get(f"{MELI_API_URL}/users/me", headers=self.headers)
+        res = requests.get(f"{MELI_API_URL}/users/me", headers=self.headers, timeout=10)
         res.raise_for_status()
         user_id = res.json()["id"]
         print(f"  └─ ID de usuario obtenido: {user_id}")
@@ -24,13 +25,49 @@ class MeLiController:
 
     def _obtener_notas_orden(self, order_id: int) -> list:
         url = f"{MELI_API_URL}/orders/{order_id}/notes"
-        res = requests.get(url, headers=self.headers)
-        if res.status_code == 200:
-            data = res.json()
-            return data if isinstance(data, list) else data.get("results", [])
+        try:
+            res = requests.get(url, headers=self.headers, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                return data if isinstance(data, list) else data.get("results", [])
+        except Exception as e:
+            logger.warning(f"Error al obtener notas de orden {order_id}: {e}")
         return []
 
-    def descargar_ultimas_ventas(self, limite: int = 20) -> Path:
+    def _obtener_shipping_info(self, shipping_id: int) -> dict:
+        url = f"{MELI_API_URL}/shipments/{shipping_id}"
+        try:
+            res = requests.get(url, headers=self.headers, timeout=10)
+            if res.status_code == 200:
+                return res.json()
+        except Exception as e:
+            logger.warning(f"Error al obtener shipping info {shipping_id}: {e}")
+        return {}
+
+    def _procesar_orden(self, item: tuple) -> str:
+        """Procesa de forma independiente el envío y las notas de una orden."""
+        idx, orden, total = item
+        order_id = orden.get("id")
+        pack_id = orden.get("pack_id")
+
+        if not order_id:
+            return ""
+
+        identificador = f"Pack ID: {pack_id}" if pack_id else f"Orden ID: {order_id}"
+
+        # 1. Obtener envío
+        shipping = orden.get("shipping", {})
+        shipping_id = shipping.get("id") if isinstance(shipping, dict) else None
+        if shipping_id:
+            orden["shipping_info"] = self._obtener_shipping_info(shipping_id)
+
+        # 2. Obtener notas
+        notas = self._obtener_notas_orden(order_id)
+        orden["notas_vendedor"] = notas
+
+        return f"     ├─ [{idx}/{total}] Procesado {identificador} (Notas: {len(notas)})"
+
+    def descargar_ultimas_ventas(self, limite: int = 20, max_workers: int = 10) -> Path:
         print(f"\n🚀 Iniciando descarga para la cuenta [{self.account_name}]")
         
         user_id = self._obtener_user_id()
@@ -39,7 +76,7 @@ class MeLiController:
         url = f"{MELI_API_URL}/orders/search"
         params = {"seller": user_id, "sort": "date_desc", "limit": limite}
 
-        res = requests.get(url, headers=self.headers, params=params)
+        res = requests.get(url, headers=self.headers, params=params, timeout=10)
         res.raise_for_status()
         data = res.json()
         
@@ -47,17 +84,18 @@ class MeLiController:
         total_ordenes = len(ordenes)
         print(f"  └─ Se obtuvieron {total_ordenes} ventas.")
 
-        print(f"  ├─ [3/4] Obteniendo notas del vendedor para cada orden...")
-        for idx, orden in enumerate(ordenes, start=1):
-            order_id = orden.get("id")
-            pack_id = orden.get("pack_id")
+        print(f"  ├─ [3/4] Obteniendo envíos y notas en paralelo ({max_workers} hilos)...")
+        
+        # Crear lista de tareas
+        tareas = [(idx, orden, total_ordenes) for idx, orden in enumerate(ordenes, start=1)]
 
-            if order_id:
-                identificador = f"Pack ID: {pack_id}" if pack_id else f"Orden ID: {order_id}"
-                print(f"     ├─ [{idx}/{total_ordenes}] Descargando notas de {identificador}")
-                notas = self._obtener_notas_orden(order_id)
-                orden["notas_vendedor"] = notas
-                print(f"     │  └─ Se encontraron {len(notas)} nota(s).")
+        # Ejecución en paralelo
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(self._procesar_orden, tarea) for tarea in tareas]
+            for future in as_completed(futures):
+                msg = future.result()
+                if msg:
+                    print(msg)
 
         nombre_archivo = f"ventas_ultimas_{self.account_name.replace(' ', '_').lower()}.json"
         archivo_destino = DATA_DIR / nombre_archivo
@@ -67,5 +105,5 @@ class MeLiController:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
         print(f"  └─ ✔ ¡Proceso finalizado! Archivo guardado correctamente en: {archivo_destino}\n")
-        logger.info(f"JSON con últimas {limite} ventas y notas guardado en: {archivo_destino}")
+        logger.info(f"JSON con últimas {limite} ventas guardado en: {archivo_destino}")
         return archivo_destino

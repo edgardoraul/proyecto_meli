@@ -50,8 +50,11 @@ class MeLiController:
         print(f"  ├─ [3/4] Obteniendo notas del vendedor para cada orden...")
         for idx, orden in enumerate(ordenes, start=1):
             order_id = orden.get("id")
+            pack_id = orden.get("pack_id")
+
             if order_id:
-                print(f"     ├─ [{idx}/{total_ordenes}] Descargando notas de la orden ID: {order_id}")
+                identificador = f"Pack ID: {pack_id}" if pack_id else f"Orden ID: {order_id}"
+                print(f"     ├─ [{idx}/{total_ordenes}] Descargando notas de {identificador}")
                 notas = self._obtener_notas_orden(order_id)
                 orden["notas_vendedor"] = notas
                 print(f"     │  └─ Se encontraron {len(notas)} nota(s).")

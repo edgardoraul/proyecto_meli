@@ -15,12 +15,14 @@ class MeLiController:
         self.headers = {"Authorization": f"Bearer {self.access_token}"}
 
     def _obtener_user_id(self) -> int:
+        print("  ├─ [1/4] Obteniendo ID del usuario vendedor...")
         res = requests.get(f"{MELI_API_URL}/users/me", headers=self.headers)
         res.raise_for_status()
-        return res.json()["id"]
+        user_id = res.json()["id"]
+        print(f"  └─ ID de usuario obtenido: {user_id}")
+        return user_id
 
     def _obtener_notas_orden(self, order_id: int) -> list:
-        """Consulta las notas del vendedor asociadas a una orden específica."""
         url = f"{MELI_API_URL}/orders/{order_id}/notes"
         res = requests.get(url, headers=self.headers)
         if res.status_code == 200:
@@ -29,25 +31,38 @@ class MeLiController:
         return []
 
     def descargar_ultimas_ventas(self, limite: int = 20) -> Path:
+        print(f"\n🚀 Iniciando descarga para la cuenta [{self.account_name}]")
+        
         user_id = self._obtener_user_id()
+        
+        print(f"  ├─ [2/4] Solicitando las últimas {limite} ventas a Mercado Libre...")
         url = f"{MELI_API_URL}/orders/search"
         params = {"seller": user_id, "sort": "date_desc", "limit": limite}
 
         res = requests.get(url, headers=self.headers, params=params)
         res.raise_for_status()
         data = res.json()
+        
+        ordenes = data.get("results", [])
+        total_ordenes = len(ordenes)
+        print(f"  └─ Se obtuvieron {total_ordenes} ventas.")
 
-        # Iterar sobre las órdenes e incluir las notas correspondientes
-        for orden in data.get("results", []):
+        print(f"  ├─ [3/4] Obteniendo notas del vendedor para cada orden...")
+        for idx, orden in enumerate(ordenes, start=1):
             order_id = orden.get("id")
             if order_id:
-                orden["notas_vendedor"] = self._obtener_notas_orden(order_id)
+                print(f"     ├─ [{idx}/{total_ordenes}] Descargando notas de la orden ID: {order_id}")
+                notas = self._obtener_notas_orden(order_id)
+                orden["notas_vendedor"] = notas
+                print(f"     │  └─ Se encontraron {len(notas)} nota(s).")
 
         nombre_archivo = f"ventas_ultimas_{self.account_name.replace(' ', '_').lower()}.json"
         archivo_destino = DATA_DIR / nombre_archivo
 
+        print(f"  ├─ [4/4] Guardando datos en archivo JSON: {archivo_destino.name}")
         with open(archivo_destino, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
+        print(f"  └─ ✔ ¡Proceso finalizado! Archivo guardado correctamente en: {archivo_destino}\n")
         logger.info(f"JSON con últimas {limite} ventas y notas guardado en: {archivo_destino}")
         return archivo_destino

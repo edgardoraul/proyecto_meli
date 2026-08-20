@@ -1,3 +1,25 @@
+import subprocess
+import sys
+
+# Lista de librerías externas que requiere tu proyecto. Chequea e instala lo que falta
+PAQUETES_REQUERIDOS = ["requests"]
+
+def verificar_dependencias():
+    for paquete in PAQUETES_REQUERIDOS:
+        try:
+            # Intenta importar. Si está instalada, pasa de largo al instante.
+            __import__(paquete)
+        except ImportError:
+            # Solo si no existe (primera vez), la instala por consola.
+            print(f"📦 Instalando dependencia por primera vez: {paquete}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", paquete])
+
+# Se ejecuta al iniciar el script
+verificar_dependencias()
+
+# =============================================================
+# DESDE AQUÍ VAN TUS IMPORTS Y CÓDIGO HABITUAL DE MAIN.PY
+# =============================================================
 import logging
 import sys
 from config.settings import CUENTAS, DATA_DIR

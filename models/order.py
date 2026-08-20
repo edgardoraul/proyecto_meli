@@ -2,22 +2,27 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
+# Subestados y estados reconocidos
+SUBESTADOS_IMPRIMIR = {"ready_to_print"}
+SUBESTADOS_IMPRESO = {"printed"}
+SUBESTADOS_EN_VIAJE = {"picked_up", "authorized_by_carrier", "in_transit", "out_for_delivery"}
+ESTADOS_EN_VIAJE = {"shipped"}
+
+LOGISTICA_LOCAL = {"custom", "not_specified", "pickup", "store"}
+ESTADOS_LOCAL = {"to_be_agreed"}
+
 
 class OrderItem:
-    """Representa cada ítem dentro de una orden de Mercado Libre."""
 
     def __init__(self, raw_item: Dict[str, Any]):
         item_data = raw_item.get("item", {})
-
-        # SKU
         self.sku = (
-            item_data.get("seller_sku")
+            item_data.get("seller_custom_field")
+            or item_data.get("seller_sku")
+            or item_data.get("id", "-")
         )
-
-        # Descripción/Título del producto
         self.title = item_data.get("title", "Sin descripción")
 
-        # Variaciones
         variaciones = item_data.get("variation_attributes", [])
         if variaciones:
             self.variant = " - ".join(
@@ -34,18 +39,15 @@ class OrderItem:
 
 
 class Order:
-    """Modelo principal de la Orden parseado desde el JSON de la API."""
 
     def __init__(self, raw_order: Dict[str, Any]):
         self.raw = raw_order
         self.date_created = raw_order.get("date_created", "")
 
-        # Si pertenece a un carrito usa pack_id, caso contrario usa el id de la orden
         pack_id = raw_order.get("pack_id")
         order_id = raw_order.get("id")
         self.venta_id = str(pack_id) if pack_id else str(order_id or "")
 
-        # Cliente
         buyer = raw_order.get("buyer", {})
         nickname = buyer.get("nickname")
         nombre_completo = (
@@ -53,7 +55,6 @@ class Order:
         )
         self.buyer_nickname = nickname or nombre_completo or "N/A"
 
-        # Envío y seguimiento
         shipping_info = raw_order.get("shipping_info", {})
         shipping_raw = raw_order.get("shipping", {})
 
@@ -63,15 +64,10 @@ class Order:
             or "-"
         )
 
-        # Mapeo a estado legible para HTMLView
         self.estado_humano = self._determinar_estado_humano(
             shipping_info, shipping_raw
         )
-
-        # Notas del vendedor
         self.seller_note = self._extraer_notas(raw_order.get("notas_vendedor"))
-
-        # Ítems
         self.items: List[OrderItem] = [
             OrderItem(item) for item in raw_order.get("order_items", [])
         ]
@@ -81,22 +77,18 @@ class Order:
     ) -> str:
         substatus = shipping_info.get("substatus") or shipping_raw.get("substatus")
         status = shipping_info.get("status") or shipping_raw.get("status")
-        logistic_type = shipping_info.get("logistic_type") or shipping_raw.get(
-            "logistic_type"
-        )
+        logistic_type = shipping_info.get("logistic_type") or shipping_raw.get("logistic_type")
 
-        if substatus == "ready_to_print":
-            return "Imprimir Rótulo"
-        elif substatus == "printed":
-            return "Rótulo Impreso"
-        elif logistic_type == "custom" or status == "to_be_agreed":
-            return "A coordinar con el vendedor"
-        elif substatus == "ready_for_pickup" or status == "pickup":
-            return "Retiro en local"
+        if substatus in SUBESTADOS_IMPRIMIR:
+            return "Imprimir rótulo"
+        if substatus in SUBESTADOS_IMPRESO:
+            return "Rótulo impreso"
+        if substatus in SUBESTADOS_EN_VIAJE or status in ESTADOS_EN_VIAJE:
+            return "En viaje"
+        if logistic_type in LOGISTICA_LOCAL or status in ESTADOS_LOCAL:
+            return "Retiro en Local"
 
-        if status:
-            return str(status).replace("_", " ").title()
-        return "A coordinar con el vendedor"
+        return "Retiro en Local"
 
     def _extraer_notas(self, notas_raw: Any) -> str:
         if not notas_raw:
@@ -118,15 +110,42 @@ class Order:
 
         return " | ".join(textos)
 
+    @staticmethod
+    def _cumple_criterio_estado(raw_order: Dict[str, Any]) -> bool:
+        shipping_info = raw_order.get("shipping_info", {})
+        shipping_raw = raw_order.get("shipping", {})
+
+        status = shipping_info.get("status") or shipping_raw.get("status")
+        substatus = shipping_info.get("substatus") or shipping_raw.get("substatus")
+        logistic_type = shipping_info.get("logistic_type") or shipping_raw.get("logistic_type")
+
+        # 1. Por Imprimir / Impreso
+        if substatus in (SUBESTADOS_IMPRIMIR | SUBESTADOS_IMPRESO):
+            return True
+
+        # 2. En Viaje (por subestado o si el envío ya pasó a status 'shipped')
+        if substatus in SUBESTADOS_EN_VIAJE or status in ESTADOS_EN_VIAJE:
+            return True
+
+        # 3. Retiro en Local / A coordinar
+        if logistic_type in LOGISTICA_LOCAL or status in ESTADOS_LOCAL:
+            return True
+
+        return False
+
     @classmethod
     def cargar_desde_json(cls, json_path: Path) -> List["Order"]:
-        """Carga el JSON descargado, parsea las órdenes y las ordena por fecha descendente."""
+        """Carga el JSON descargado, filtra únicamente por los estados permitidos y ordena por fecha descendente."""
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         results = data.get("results", [])
-        ordenes = [cls(item) for item in results]
 
-        # Ordenar explícitamente por fecha de creación descendente
-        ordenes.sort(key=lambda x: x.date_created, reverse=True)
-        return ordenes
+        # Filtrar únicamente las órdenes válidas
+        ordenes_filtradas = [
+            cls(item) for item in results if cls._cumple_criterio_estado(item)
+        ]
+
+        # Ordenar por fecha de creación descendente
+        ordenes_filtradas.sort(key=lambda x: x.date_created, reverse=True)
+        return ordenes_filtradas

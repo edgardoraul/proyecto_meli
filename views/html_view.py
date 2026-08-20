@@ -15,7 +15,6 @@ from models.order import Order
 
 logger = logging.getLogger(__name__)
 
-
 class HTMLView:
     def __init__(
         self,
@@ -27,10 +26,9 @@ class HTMLView:
 
     def _mapear_color_badge(self, estado: str) -> str:
         colores = {
-            "Imprimir Rótulo": "Verde",
-            "Rótulo Impreso": "Naranja",
-            "Retiro en local": "Azul",
-            "A coordinar": "Azul",
+            "Imprimir rótulo": "Verde",
+            "Rótulo impreso": "Naranja",
+            "Retiro en Local": "Azul"
         }
         return colores.get(estado, "Gris")
 

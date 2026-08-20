@@ -31,7 +31,7 @@ class OrderItem:
                 ]
             )
         else:
-            self.variant = "Sin variante"
+            self.variant = ""
 
         self.quantity = raw_item.get("quantity", 1)
 
@@ -122,8 +122,8 @@ class Order:
             return True
 
         # 2. En Viaje (por subestado o si el envío ya pasó a status 'shipped')
-        if substatus in SUBESTADOS_EN_VIAJE or status in ESTADOS_EN_VIAJE:
-            return True
+        #if substatus in SUBESTADOS_EN_VIAJE or status in ESTADOS_EN_VIAJE:
+        #    return True
 
         # 3. Retiro en Local / A coordinar
         if logistic_type in LOGISTICA_LOCAL or status in ESTADOS_LOCAL:

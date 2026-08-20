@@ -17,9 +17,7 @@ class OrderItem:
     def __init__(self, raw_item: Dict[str, Any]):
         item_data = raw_item.get("item", {})
         self.sku = (
-            item_data.get("seller_custom_field")
-            or item_data.get("seller_sku")
-            or item_data.get("id", "-")
+            item_data.get("seller_sku")
         )
         self.title = item_data.get("title", "Sin descripción")
 

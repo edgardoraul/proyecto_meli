@@ -3,7 +3,10 @@ import sys
 from config.settings import CUENTAS, DATA_DIR
 from controllers.meli_controller import MeLiController
 from models.auth import MeLiAuth
+from models.order import Order
+from views.html_view import HTMLView
 
+# Logger global
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - [%(levelname)s] - %(message)s",
@@ -46,13 +49,26 @@ def ejecutar():
     cuenta_config = seleccionar_cuenta()
 
     try:
+        # 1. Autenticación
         auth = MeLiAuth(cuenta_config)
         token = auth.get_access_token()
 
+        # 2. Descarga del JSON con envíos y notas en paralelo
         controller = MeLiController(
             access_token=token, account_name=cuenta_config["nombre"]
         )
-        controller.descargar_ultimas_ventas(limite=20)
+        json_path = controller.descargar_ultimas_ventas(limite=20)
+
+        # 3. Parseo del JSON a objetos Order (ordenados por fecha desc)
+        ordenes = Order.cargar_desde_json(json_path)
+
+        # 4. Generación de la vista HTML
+        vista = HTMLView(output_file="index.html")
+        vista.generar_reporte(
+            account_name=cuenta_config["nombre"],
+            ordenes=ordenes,
+            abrir_navegador=True,
+        )
 
         print(
             f"\n✅ Proceso completado exitosamente para [{cuenta_config['nombre']}]."

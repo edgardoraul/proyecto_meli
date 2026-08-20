@@ -27,10 +27,10 @@ class HTMLView:
 
     def _mapear_color_badge(self, estado: str) -> str:
         colores = {
-            "Imprimir Rótulo": "NaranjaClaro",
+            "Imprimir Rótulo": "Verde",
             "Rótulo Impreso": "Naranja",
-            "Retiro en local": "Gris",
-            "A coordinar con el vendedor": "Gris",
+            "Retiro en local": "Azul",
+            "A coordinar": "Azul",
         }
         return colores.get(estado, "Gris")
 
@@ -59,6 +59,7 @@ class HTMLView:
                     "items": [
                         {
                             "sku": item.sku,
+                            "titulo": item.title,
                             "variante": item.variant,
                             "cantidad": item.quantity,
                         }
@@ -111,6 +112,7 @@ class HTMLView:
                 <th>ID Venta / Carrito</th>
                 <th>Cliente</th>
                 <th>SKU</th>
+                <th>Producto</th>
                 <th>Variante</th>
                 <th>Cant.</th>
                 <th>Detalles</th>

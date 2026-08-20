@@ -18,16 +18,19 @@ function cargarTabla() {
 
     ventasData.forEach((v, index) => {
         let skusHtml = '<ul class="item-list">';
+        let titulosHtml = '<ul class="item-list">';
         let variantesHtml = '<ul class="item-list">';
         let cantidadesHtml = '<ul class="item-list">';
 
         v.items.forEach(item => {
             skusHtml += `<li class="item-row"><strong>${item.sku}</strong></li>`;
+            titulosHtml += `<li class="item-row">${item.titulo}</li>`;
             variantesHtml += `<li class="item-row">${item.variante}</li>`;
             cantidadesHtml += `<li class="item-row">${item.cantidad}</li>`;
         });
 
         skusHtml += '</ul>';
+        titulosHtml += '</ul>';
         variantesHtml += '</ul>';
         cantidadesHtml += '</ul>';
 
@@ -40,6 +43,7 @@ function cargarTabla() {
             <td><strong>${v.venta_id}</strong></td>
             <td><strong>${v.cliente}</strong></td>
             <td>${skusHtml}</td>
+            <td>${titulosHtml}</td>
             <td>${variantesHtml}</td>
             <td>${cantidadesHtml}</td>
             <td>${v.detalles || ''}</td>
@@ -67,7 +71,7 @@ function actualizarBoton() {
 
 function generarCSV() {
     const seleccionados = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value));
-    let csvLines = [["ID Venta / Carrito", "Cliente", "SKU", "Variante", "Cantidad", "Detalles", "Numero Guia / Retiro"].join(";")];
+    let csvLines = [["ID Venta / Carrito", "Cliente", "SKU", "Producto", "Variante", "Cantidad", "Detalles", "Numero Guia / Retiro"].join(";")];
 
     seleccionados.forEach(idx => {
         const v = ventasData[idx];
@@ -79,6 +83,7 @@ function generarCSV() {
                 idVentaFormateado,
                 `"${v.cliente}"`,
                 `"${item.sku}"`,
+                `"${item.titulo}"`,
                 `"${item.variante}"`,
                 item.cantidad,
                 `"${v.detalles || ''}"`,

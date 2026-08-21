@@ -1,22 +1,6 @@
 import subprocess
 import sys
 
-# Lista de librerías externas que requiere tu proyecto. Chequea e instala lo que falta
-PAQUETES_REQUERIDOS = ["requests"]
-
-def verificar_dependencias():
-    for paquete in PAQUETES_REQUERIDOS:
-        try:
-            # Intenta importar. Si está instalada, pasa de largo al instante.
-            __import__(paquete)
-        except ImportError:
-            # Solo si no existe (primera vez), la instala por consola.
-            print(f"📦 Instalando dependencia por primera vez: {paquete}...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", paquete])
-
-# Se ejecuta al iniciar el script
-verificar_dependencias()
-
 # =============================================================
 # DESDE AQUÍ VAN TUS IMPORTS Y CÓDIGO HABITUAL DE MAIN.PY
 # =============================================================
@@ -37,6 +21,16 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout),
     ],
 )
+
+# Preguntar cantidad al usuario
+def pedir_cantidad_ventas() -> int:
+    entrada = input("\n¿Cuántas ventas querés descargar? [Por defecto 20]: ").strip()
+    if not entrada:
+        return 20
+    if entrada.isdigit() and int(entrada) > 0:
+        return int(entrada)
+    print("⚠️ Entrada inválida, se usarán 20 por defecto.")
+    return 20
 
 
 def seleccionar_cuenta() -> dict:
@@ -69,6 +63,7 @@ def seleccionar_cuenta() -> dict:
 
 def ejecutar():
     cuenta_config = seleccionar_cuenta()
+    cantidad_ventas = pedir_cantidad_ventas()
 
     try:
         # 1. Autenticación
@@ -79,7 +74,7 @@ def ejecutar():
         controller = MeLiController(
             access_token=token, account_name=cuenta_config["nombre"]
         )
-        json_path = controller.descargar_ultimas_ventas(limite=20)
+        json_path = controller.descargar_ultimas_ventas(limite=cantidad_ventas)
 
         # 3. Parseo del JSON a objetos Order (ordenados por fecha desc)
         ordenes = Order.cargar_desde_json(json_path)

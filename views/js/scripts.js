@@ -71,7 +71,7 @@ function actualizarBoton() {
 
 function generarCSV() {
     const seleccionados = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value));
-    let csvLines = [["Nº Venta", "Cliente", "Código", "Producto", "Cantidad", "Detalles", "Nº Guía"].join(";")];
+    let csvLines = [["Nº Venta", "Cliente", "Código", "Producto", "Color", "Talle", "Cant.", "Detalles", "Nº Guía"].join(";")];
 
     seleccionados.forEach(idx => {
         const v = ventasData[idx];
@@ -85,6 +85,8 @@ function generarCSV() {
                 `"${item.sku}"`,
                 `"${item.titulo}"`,
                 // `"${item.variante}"`,
+                `"${""}"`, // Vacío para el color
+                `"${""}"`, // Vacío para el talle
                 item.cantidad,
                 `"${v.detalles || ''}"`,
                 guiaFormateada

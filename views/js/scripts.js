@@ -77,7 +77,7 @@ function generarCSV() {
         const v = ventasData[idx];
         v.items.forEach(item => {
             let idVentaFormateado = v.venta_id ? `"\'${v.venta_id}"` : '""';
-            let guiaFormateada = v.numero_guia ? `"${v.numero_guia}"` : '""';
+            let guiaFormateada = v.numero_guia ? `"\'${v.numero_guia}"` : '""';
 
             csvLines.push([
                 idVentaFormateado,

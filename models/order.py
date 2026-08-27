@@ -118,7 +118,7 @@ class Order:
         logistic_type = shipping_info.get("logistic_type") or shipping_raw.get("logistic_type")
 
         # 1. Por Imprimir / Impreso
-        if substatus in (SUBESTADOS_IMPRIMIR | SUBESTADOS_IMPRESO):
+        if substatus in (SUBESTADOS_IMPRIMIR | SUBESTADOS_IMPRESO ):
             return True
 
         # 2. En Viaje (por subestado o si el envío ya pasó a status 'shipped')

@@ -100,6 +100,7 @@ class HTMLView:
     <div class="actions">
         <button class="btn-toggle" onclick="toggleSelectAll()">Tildar todas / Ninguna</button>
         <button id="btnCSV" class="btn-generate" disabled onclick="generarCSV()">Generar Planilla CSV</button>
+        <span id="cartelRenglones" class="cartel-renglones">Renglones: 0 / 20</span>
     </div>
 
     <table>

@@ -64,9 +64,36 @@ function toggleSelectAll() {
 function actualizarBoton() {
     const checkboxes = document.querySelectorAll('.row-checkbox:checked');
     const btn = document.getElementById('btnCSV');
+    const cartel = document.getElementById('cartelRenglones');
+
+    // Calculamos el total real de renglones/items seleccionados
+    let totalRenglones = 0;
+    checkboxes.forEach(cb => {
+        const idx = parseInt(cb.value);
+        if (ventasData[idx] && ventasData[idx].items) {
+            totalRenglones += ventasData[idx].items.length;
+        }
+    });
+
+    // Actualizamos el texto del cartel y su estado visual
+    if (cartel) {
+        if (totalRenglones > 20) {
+            cartel.textContent = `Renglones: ${totalRenglones} / 20 (¡Supera el límite!)`;
+            cartel.style.color = "#d9534f"; // Rojo advertencia
+            cartel.style.fontWeight = "bold";
+        } else {
+            cartel.textContent = `Renglones: ${totalRenglones} / 20`;
+            cartel.style.color = "#333";
+            cartel.style.fontWeight = "normal";
+        }
+    }
+
     if (!btn) return;
-    btn.disabled = checkboxes.length === 0;
-    btn.classList.toggle('active', checkboxes.length > 0);
+
+    // Habilitar botón solo si hay elementos seleccionados y NO superan los 20 renglones
+    const esValido = totalRenglones > 0 && totalRenglones <= 20;
+    btn.disabled = !esValido;
+    btn.classList.toggle('active', esValido);
 }
 
 function generarCSV() {

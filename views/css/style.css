@@ -105,6 +105,15 @@ tbody tr.fin-carrito td {
     color: #d97706;
     border: 1px solid #fbd38d;
 }
+.cartel-renglones {
+    margin-left: 15px;
+    padding: 10px 18px;
+    background-color: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    display: inline-block;
+}
 .item-list {
     list-style: none;
     padding: 0;

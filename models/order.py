@@ -5,8 +5,8 @@ from typing import Any, Dict, List
 # Subestados y estados reconocidos
 SUBESTADOS_IMPRIMIR = {"ready_to_print"}
 SUBESTADOS_IMPRESO = {"printed"}
-SUBESTADOS_EN_VIAJE = {"picked_up", "authorized_by_carrier", "in_transit", "out_for_delivery"}
 ESTADOS_EN_VIAJE = {"shipped"}
+SUBESTADOS_EN_VIAJE = {"picked_up", "authorized_by_carrier", "in_transit", "out_for_delivery"}
 
 LOGISTICA_LOCAL = {"custom", "not_specified", "pickup", "store"}
 ESTADOS_LOCAL = {"to_be_agreed"}
@@ -122,8 +122,8 @@ class Order:
             return True
 
         # 2. En Viaje (por subestado o si el envío ya pasó a status 'shipped')
-        #if substatus in SUBESTADOS_EN_VIAJE or status in ESTADOS_EN_VIAJE:
-        #    return True
+        if substatus in SUBESTADOS_EN_VIAJE or status in ESTADOS_EN_VIAJE:
+            return True
 
         # 3. Retiro en Local / A coordinar
         if logistic_type in LOGISTICA_LOCAL or status in ESTADOS_LOCAL:

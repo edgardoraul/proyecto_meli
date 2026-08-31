@@ -67,6 +67,7 @@ class MeLiController:
 
         return f"     ├─ [{idx}/{total}] Procesado {identificador} (Notas: {len(notas)})"
 
+
     def descargar_ultimas_ventas(self, limite: int = 20, max_workers: int = 10) -> Path:
         print(f"\n🚀 Iniciando descarga para la cuenta [{self.account_name}]")
         
@@ -74,22 +75,44 @@ class MeLiController:
         
         print(f"  ├─ [2/4] Solicitando las últimas {limite} ventas a Mercado Libre...")
         url = f"{MELI_API_URL}/orders/search"
-        params = {"seller": user_id, "sort": "date_desc", "limit": limite}
-
-        res = requests.get(url, headers=self.headers, params=params, timeout=10)
-        res.raise_for_status()
-        data = res.json()
         
-        ordenes = data.get("results", [])
+        ordenes = []
+        offset = 0
+        TAMANO_PAGINA = 20  # Lotes de 20 en 20
+
+        while len(ordenes) < limite:
+            cuantos_pedir = min(TAMANO_PAGINA, limite - len(ordenes))
+            params = {
+                "seller": user_id,
+                "sort": "date_desc",
+                "limit": cuantos_pedir,
+                "offset": offset,
+            }
+
+            res = requests.get(url, headers=self.headers, params=params, timeout=10)
+            res.raise_for_status()
+            data_page = res.json()
+
+            batch = data_page.get("results", [])
+            if not batch:
+                break
+
+            ordenes.extend(batch)
+            offset += len(batch)
+            
+            print(f"     ├─ Descargadas {len(ordenes)} de {limite} (offset: {offset})")
+
+            # Si la API devuelve menos de lo solicitado, no hay más registros
+            if len(batch) < cuantos_pedir:
+                break
+
         total_ordenes = len(ordenes)
         print(f"  └─ Se obtuvieron {total_ordenes} ventas.")
 
         print(f"  ├─ [3/4] Obteniendo envíos y notas en paralelo ({max_workers} hilos)...")
         
-        # Crear lista de tareas
         tareas = [(idx, orden, total_ordenes) for idx, orden in enumerate(ordenes, start=1)]
 
-        # Ejecución en paralelo
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(self._procesar_orden, tarea) for tarea in tareas]
             for future in as_completed(futures):
@@ -101,9 +124,10 @@ class MeLiController:
         archivo_destino = DATA_DIR / nombre_archivo
 
         print(f"  ├─ [4/4] Guardando datos en archivo JSON: {archivo_destino.name}")
+        data_final = {"results": ordenes}
         with open(archivo_destino, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
+            json.dump(data_final, f, indent=4, ensure_ascii=False)
 
         print(f"  └─ ✔ ¡Proceso finalizado! Archivo guardado correctamente en: {archivo_destino}\n")
-        logger.info(f"JSON con últimas {limite} ventas guardado en: {archivo_destino}")
+        logger.info(f"JSON con últimas {total_ordenes} ventas guardado en: {archivo_destino}")
         return archivo_destino

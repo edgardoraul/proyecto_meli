@@ -1,18 +1,10 @@
-import subprocess
-import sys
-
-# =============================================================
-# DESDE AQUÍ VAN TUS IMPORTS Y CÓDIGO HABITUAL DE MAIN.PY
-# =============================================================
 import logging
 import sys
 from config.settings import CUENTAS, DATA_DIR
 from controllers.meli_controller import MeLiController
 from models.auth import MeLiAuth
-from models.order import Order
 from views.html_view import HTMLView
 
-# Logger global
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - [%(levelname)s] - %(message)s",
@@ -22,7 +14,6 @@ logging.basicConfig(
     ],
 )
 
-# Preguntar cantidad al usuario
 def pedir_cantidad_ventas() -> int:
     entrada = input("\n¿Cuántas ventas querés descargar? [Por defecto 20]: ").strip()
     if not entrada:
@@ -32,10 +23,9 @@ def pedir_cantidad_ventas() -> int:
     print("⚠️ Entrada inválida, se usarán 20 por defecto.")
     return 20
 
-
 def seleccionar_cuenta() -> dict:
     print("\n==============================================")
-    print("      PANEL DE GESTIÓN DE MERCADO LIBRE       ")
+    print("       PANEL DE GESTIÓN DE MERCADO LIBRE       ")
     print("==============================================")
 
     if not CUENTAS:
@@ -60,7 +50,6 @@ def seleccionar_cuenta() -> dict:
         print("\n[!] Opción inválida. Intente de nuevo.")
         return seleccionar_cuenta()
 
-
 def ejecutar():
     cuenta_config = seleccionar_cuenta()
     cantidad_ventas = pedir_cantidad_ventas()
@@ -70,30 +59,23 @@ def ejecutar():
         auth = MeLiAuth(cuenta_config)
         token = auth.get_access_token()
 
-        # 2. Descarga del JSON con envíos y notas en paralelo
+        # 2. Descarga del JSON crudo (el controlador escribe directamente temp_data.js)
         controller = MeLiController(
             access_token=token, account_name=cuenta_config["nombre"]
         )
-        json_path = controller.descargar_ultimas_ventas(limite=cantidad_ventas)
+        controller.descargar_ultimas_ventas(limite=cantidad_ventas)
 
-        # 3. Parseo del JSON a objetos Order (ordenados por fecha desc)
-        ordenes = Order.cargar_desde_json(json_path)
-
-        # 4. Generación de la vista HTML
+        # 3. Generación y apertura del reporte HTML
         vista = HTMLView(output_file="index.html")
         vista.generar_reporte(
             account_name=cuenta_config["nombre"],
-            ordenes=ordenes,
             abrir_navegador=True,
         )
 
-        print(
-            f"\n✅ Proceso completado exitosamente para [{cuenta_config['nombre']}]."
-        )
+        print(f"\n✅ Proceso completado exitosamente para [{cuenta_config['nombre']}].")
 
     except Exception as e:
         logging.error(f"Error crítico en la ejecución: {e}", exc_info=True)
-
 
 if __name__ == "__main__":
     ejecutar()

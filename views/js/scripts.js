@@ -1,16 +1,105 @@
-// Limpieza de carritos: recorremos de abajo hacia arriba.
-// Asume que 'ventasData' ya fue cargada globalmente por temp_data.js
-for (let i = ventasData.length - 1; i > 0; i--) {
-    if (ventasData[i].venta_id === ventasData[i - 1].venta_id) {
-        ventasData[i].fecha = "";
-        ventasData[i].venta_id = "";
-        ventasData[i].cliente = "";
-        ventasData[i].numero_guia = "";
-        ventasData[i].texto_rotulo = "";
-        ventasData[i].estado_rotulo = "";
+let ventasData = [];
+
+// Convierte TEMP_DATA (JSON crudo) al formato estructurado para la tabla
+function convertirRawData() {
+    if (typeof TEMP_DATA === 'undefined') {
+        console.error("❌ No se encontró la variable TEMP_DATA en temp_data.js");
+        return;
+    }
+
+    const rawOrders = Array.isArray(TEMP_DATA) ? TEMP_DATA : (TEMP_DATA.results || []);
+
+    if (!rawOrders.length) {
+        console.warn("⚠️ TEMP_DATA está vacío o no contiene resultados.");
+        return;
+    }
+    // Estados de interes: Imprimir Rótulo, Rótulo Impreso, Retiro del Local, A coordinar.
+    // El resto no importa, sólo mostrar los que están en tránsito
+
+    const SUBESTADOS_IMPRIMIR = new Set(["ready_to_print"]);
+    const SUBESTADOS_IMPRESO = new Set(["printed"]);
+    const SUBESTADOS_EN_VIAJE = new Set(["picked_up", "authorized_by_carrier", "in_transit", "out_for_delivery"]);
+    const ESTADOS_EN_VIAJE = new Set(["shipped"]);
+    const LOGISTICA_LOCAL = new Set(["custom", "not_specified", "pickup", "store"]);
+    const ESTADOS_LOCAL = new Set(["to_be_agreed"]);
+
+    ventasData = rawOrders.map(order => {
+        const ship = order.shipping_info;
+        const substatus = ship.substatus;
+        const status = ship.status;
+        const logisticType = ship.logistic_type;
+
+        let texto_rotulo;
+        let estado_rotulo;
+
+        if (SUBESTADOS_IMPRIMIR.has(substatus)) {
+            texto_rotulo = "Imprimir rótulo";
+            estado_rotulo = "Verde";
+        } else if (SUBESTADOS_IMPRESO.has(substatus)) {
+            texto_rotulo = "Rótulo impreso";
+            estado_rotulo = "Naranja";
+        } else if (LOGISTICA_LOCAL.has(logisticType) || ESTADOS_LOCAL.has(status)) {
+            texto_rotulo = "Retiro en Local";
+            estado_rotulo = "NaranjaClaro";
+        } else if (SUBESTADOS_EN_VIAJE.has(substatus) || ESTADOS_EN_VIAJE.has(status)) {
+            texto_rotulo = "En viaje";
+            estado_rotulo = "Gris";
+        } else {
+            texto_rotulo = order.status;
+            estado_rotulo = "Gris";
+        }
+
+        const dateObj = new Date(order.date_created);
+        const fecha = isNaN(dateObj) ? "" : dateObj.toLocaleString('es-AR', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+
+        const buyer = order.buyer || {};
+        const cliente = buyer.nickname || `${buyer.first_name || ''} ${buyer.last_name || ''}`.trim() || "Cliente MeLi";
+
+        const items = (order.order_items || []).map(oi => {
+            const item = oi.item || {};
+            let variante = "-";
+            if (item.variation_attributes && item.variation_attributes.length > 0) {
+                variante = item.variation_attributes.map(a => `${a.name}: ${a.value_name}`).join(", ");
+            }
+
+            return {
+                sku: item.seller_sku,
+                titulo: item.title,
+                variante: variante,
+                cantidad: oi.quantity
+            };
+        });
+
+        return {
+            venta_id: String(order.pack_id || order.id || ""),
+            fecha: fecha,
+            cliente: cliente,
+            numero_guia: String(ship.tracking_number || ship.id || ""),
+            detalles: order.notes || "",
+            texto_rotulo: texto_rotulo,
+            estado_rotulo: estado_rotulo,
+            items: items
+        };
+    });
+}
+
+// Limpieza de datos repetidos en carritos
+function limpiarCarritos() {
+    for (let i = ventasData.length - 1; i > 0; i--) {
+        if (ventasData[i].venta_id && ventasData[i].venta_id === ventasData[i - 1].venta_id) {
+            ventasData[i].fecha = "";
+            ventasData[i].venta_id = "";
+            ventasData[i].cliente = "";
+            ventasData[i].numero_guia = "";
+            ventasData[i].texto_rotulo = "";
+            ventasData[i].estado_rotulo = "";
+        }
     }
 }
 
+// Carga del HTML de la tabla
 function cargarTabla() {
     const tbody = document.getElementById('tablaVentas');
     if (!tbody) return;
@@ -34,7 +123,6 @@ function cargarTabla() {
         variantesHtml += '</ul>';
         cantidadesHtml += '</ul>';
 
-        // Determinar si lleva borde superior (es una nueva orden y no es la primera fila)
         let trClass = (index > 0 && v.venta_id !== "") ? ' class="borde-separador"' : '';
 
         tbody.innerHTML += `<tr${trClass}>
@@ -66,7 +154,6 @@ function actualizarBoton() {
     const btn = document.getElementById('btnCSV');
     const cartel = document.getElementById('cartelRenglones');
 
-    // Calculamos el total real de renglones/items seleccionados
     let totalRenglones = 0;
     checkboxes.forEach(cb => {
         const idx = parseInt(cb.value);
@@ -75,11 +162,10 @@ function actualizarBoton() {
         }
     });
 
-    // Actualizamos el texto del cartel y su estado visual
     if (cartel) {
         if (totalRenglones > 20) {
             cartel.textContent = `Renglones: ${totalRenglones} / 20 (¡Supera el límite!)`;
-            cartel.style.color = "#d9534f"; // Rojo advertencia
+            cartel.style.color = "#d9534f";
             cartel.style.fontWeight = "bold";
         } else {
             cartel.textContent = `Renglones: ${totalRenglones} / 20`;
@@ -90,7 +176,6 @@ function actualizarBoton() {
 
     if (!btn) return;
 
-    // Habilitar botón solo si hay elementos seleccionados y NO superan los 20 renglones
     const esValido = totalRenglones > 0 && totalRenglones <= 20;
     btn.disabled = !esValido;
     btn.classList.toggle('active', esValido);
@@ -111,9 +196,8 @@ function generarCSV() {
                 `"${v.cliente}"`,
                 `"${item.sku}"`,
                 `"${item.titulo}"`,
-                // `"${item.variante}"`,
-                `"${""}"`, // Vacío para el color
-                `"${""}"`, // Vacío para el talle
+                `"${""}"`,
+                `"${""}"`,
                 item.cantidad,
                 `"${v.detalles || ''}"`,
                 guiaFormateada
@@ -130,4 +214,8 @@ function generarCSV() {
     document.body.removeChild(link);
 }
 
-document.addEventListener('DOMContentLoaded', cargarTabla);
+document.addEventListener('DOMContentLoaded', () => {
+    convertirRawData();
+    limpiarCarritos();
+    cargarTabla();
+});

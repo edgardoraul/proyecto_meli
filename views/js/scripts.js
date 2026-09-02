@@ -2,77 +2,105 @@ let ventasData = [];
 
 // Convierte TEMP_DATA (JSON crudo) al formato estructurado para la tabla
 function convertirRawData() {
+    // 1. Validar que exista la información
     if (typeof TEMP_DATA === 'undefined') {
-        console.error("❌ No se encontró la variable TEMP_DATA en temp_data.js");
+        console.error("❌ No se encontró TEMP_DATA");
         return;
     }
 
     const rawOrders = Array.isArray(TEMP_DATA) ? TEMP_DATA : (TEMP_DATA.results || []);
 
-    if (!rawOrders.length) {
-        console.warn("⚠️ TEMP_DATA está vacío o no contiene resultados.");
-        return;
-    }
-    // Estados de interes: Imprimir Rótulo, Rótulo Impreso, Retiro del Local, A coordinar.
-    // El resto no importa, sólo mostrar los que están en tránsito
+    // 2. Recorremos cada orden recibida
+    for (const order of rawOrders) {
+        // Evitamos errores si no existe shipping_info
+        const ship = order.shipping_info || "";
+        const substatus = ship.substatus || "";
+        const status = ship.status || order.status || "";
+        const logisticType = ship.logistic_type || "";
 
-    const SUBESTADOS_IMPRIMIR = new Set(["ready_to_print"]);
-    const SUBESTADOS_IMPRESO = new Set(["printed"]);
-    const SUBESTADOS_EN_VIAJE = new Set(["picked_up", "authorized_by_carrier", "in_transit", "out_for_delivery"]);
-    const ESTADOS_EN_VIAJE = new Set(["shipped"]);
-    const LOGISTICA_LOCAL = new Set(["custom", "not_specified", "pickup", "store"]);
-    const ESTADOS_LOCAL = new Set(["to_be_agreed"]);
+        // 3. Evaluamos a qué grupo pertenece la orden
+        const esImprimir = (substatus === "ready_to_print");
+        const esImpreso = (substatus === "printed" || status === "ready_to_ship");
+        const esRetiroLocal = (
+            logisticType == "custom" ||
+            logisticType == "not_specified" ||
+            logisticType == "pickup" ||
+            logisticType == "store" ||
+            status == "to_be_agreed"
+        );
+        const esEnViaje = (
+            substatus == "picked_up" ||
+            substatus == "authorized_by_carrier" ||
+            substatus == "in_transit" ||
+            substatus == "out_for_delivery" ||
+            status == "shipped"
+        );
 
-    ventasData = rawOrders.map(order => {
-        const ship = order.shipping_info;
-        const substatus = ship.substatus;
-        const status = ship.status;
-        const logisticType = ship.logistic_type;
+        // 4. SI NO ES DE NINGUNO DE ESTOS GRUPOS, LA SALTAMOS (NO SE MOSTRARÁ)
+        if (!esImprimir && !esImpreso && !esRetiroLocal && !esEnViaje) {
+            continue; // Salta a la siguiente orden
+        }
 
-        let texto_rotulo;
-        let estado_rotulo;
+        // 5. Asignamos textos y colores según el grupo
+        let texto_rotulo = "";
+        let estado_rotulo = "";
 
-        if (SUBESTADOS_IMPRIMIR.has(substatus)) {
+        if (esImprimir) {
             texto_rotulo = "Imprimir rótulo";
             estado_rotulo = "Verde";
-        } else if (SUBESTADOS_IMPRESO.has(substatus)) {
+        } else if (esImpreso) {
             texto_rotulo = "Rótulo impreso";
             estado_rotulo = "Naranja";
-        } else if (LOGISTICA_LOCAL.has(logisticType) || ESTADOS_LOCAL.has(status)) {
+        } else if (esRetiroLocal) {
             texto_rotulo = "Retiro en Local";
             estado_rotulo = "NaranjaClaro";
-        } else if (SUBESTADOS_EN_VIAJE.has(substatus) || ESTADOS_EN_VIAJE.has(status)) {
+        } else if (esEnViaje) {
             texto_rotulo = "En viaje";
-            estado_rotulo = "Gris";
-        } else {
-            texto_rotulo = order.status;
             estado_rotulo = "Gris";
         }
 
+        // 6. Formateamos la fecha (DD/MM/YYYY)
         const dateObj = new Date(order.date_created);
-        const fecha = isNaN(dateObj) ? "" : dateObj.toLocaleString('es-AR', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        });
+        let fecha = "";
+        if (!isNaN(dateObj)) {
+            fecha = dateObj.toLocaleDateString('es-AR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
 
+        // 7. Obtenemos cliente (con respaldo si falla)
         const buyer = order.buyer || {};
         const cliente = buyer.nickname || `${buyer.first_name || ''} ${buyer.last_name || ''}`.trim() || "Cliente MeLi";
 
-        const items = (order.order_items || []).map(oi => {
+        // 8. Armamos la lista de productos
+        const items = [];
+        const rawItems = order.order_items || [];
+
+        for (const oi of rawItems) {
             const item = oi.item || {};
+
+            // Manejo de variantes (color, talle, etc.)
             let variante = "-";
             if (item.variation_attributes && item.variation_attributes.length > 0) {
-                variante = item.variation_attributes.map(a => `${a.name}: ${a.value_name}`).join(", ");
+                const listaVariantes = [];
+                for (const attr of item.variation_attributes) {
+                    listaVariantes.push(`${attr.name}: ${attr.value_name}`);
+                }
+                variante = listaVariantes.join(", ");
             }
 
-            return {
-                sku: item.seller_sku,
-                titulo: item.title,
+            items.push({
+                sku: item.seller_sku || item.seller_custom_field || item.id || "-",
+                titulo: item.title || "",
                 variante: variante,
-                cantidad: oi.quantity
-            };
-        });
+                cantidad: oi.quantity || 1
+            });
+        }
 
-        return {
+        // 9. Guardamos la orden lista en el arreglo final
+        ventasData.push({
             venta_id: String(order.pack_id || order.id || ""),
             fecha: fecha,
             cliente: cliente,
@@ -81,8 +109,8 @@ function convertirRawData() {
             texto_rotulo: texto_rotulo,
             estado_rotulo: estado_rotulo,
             items: items
-        };
-    });
+        });
+    }
 }
 
 // Limpieza de datos repetidos en carritos
@@ -126,16 +154,16 @@ function cargarTabla() {
         let trClass = (index > 0 && v.venta_id !== "") ? ' class="borde-separador"' : '';
 
         tbody.innerHTML += `<tr${trClass}>
-            <td><input type="checkbox" class="row-checkbox" value="${index}" onchange="actualizarBoton()"></td>
-            <td>${v.fecha}</td>
-            <td><strong>${v.venta_id}</strong></td>
-            <td><strong>${v.cliente}</strong></td>
-            <td>${skusHtml}</td>
-            <td>${titulosHtml}</td>
-            <td>${variantesHtml}</td>
-            <td>${cantidadesHtml}</td>
-            <td>${v.detalles || ''}</td>
-            <td><span class="badge badge-${v.estado_rotulo}">${v.texto_rotulo}</span></td>
+            <td><input type="checkbox" id="${v.venta_id}" class="row-checkbox" value="${index}" onchange="actualizarBoton()"></td>
+            <td><label for="${v.venta_id}">${v.fecha}</label></td>
+            <td style="background-color:#eee;"><label for="${v.venta_id}"><strong>${v.venta_id}</strong></label></td>
+            <td><label for="${v.venta_id}"><strong>${v.cliente}</strong></label></td>
+            <td><label for="${v.venta_id}">${skusHtml}</label></td>
+            <td><label for="${v.venta_id}">${titulosHtml}</label></td>
+            <td><label for="${v.venta_id}">${variantesHtml}</label></td>
+            <td><label for="${v.venta_id}">${cantidadesHtml}</label></td>
+            <td><label for="${v.venta_id}">${v.detalles || ''}</label></td>
+            <td><label for="${v.venta_id}"><span class="badge badge-${v.estado_rotulo}">${v.texto_rotulo}</span></label></td>
         </tr>`;
     });
 }

@@ -68,7 +68,7 @@ class MeLiController:
         return f"     ├─ [{idx}/{total}] Procesado {identificador} (Notas: {len(notas)})"
 
 
-    def descargar_ultimas_ventas(self, limite: int = 20, max_workers: int = 10) -> Path:
+    def descargar_ultimas_ventas(self, limite: int = 20, max_workers: int = 50) -> Path:
         print(f"\n🚀 Iniciando descarga para la cuenta [{self.account_name}]")
         
         user_id = self._obtener_user_id()
@@ -123,11 +123,23 @@ class MeLiController:
         nombre_archivo = f"ventas_ultimas_{self.account_name.replace(' ', '_').lower()}.json"
         archivo_destino = DATA_DIR / nombre_archivo
 
-        print(f"  ├─ [4/4] Guardando datos en archivo JSON: {archivo_destino.name}")
+        print(f"  ├─ [4/4] Guardando datos en archivo JSON y JS...")
         data_final = {"results": ordenes}
+
+        # 1. Guardar JSON original
         with open(archivo_destino, "w", encoding="utf-8") as f:
             json.dump(data_final, f, indent=4, ensure_ascii=False)
 
-        print(f"  └─ ✔ ¡Proceso finalizado! Archivo guardado correctamente en: {archivo_destino}\n")
-        logger.info(f"JSON con últimas {total_ordenes} ventas guardado en: {archivo_destino}")
+        # 2. Guardar temp_data.js en views/js/
+        archivo_js = Path("views/js/temp_data.js")
+
+        json_str = json.dumps(data_final, ensure_ascii=False, indent=4)
+        with open(archivo_js, "w", encoding="utf-8") as f:
+            f.write(f"const TEMP_DATA = {json_str};\n")
+
+        print(f"  └─ ✔ ¡Proceso finalizado!")
+        print(f"     - JSON: {archivo_destino}")
+        print(f"     - JS:   {archivo_js}\n")
+        
+        logger.info(f"Archivos guardados en: {archivo_destino} y {archivo_js}")
         return archivo_destino

@@ -43,7 +43,7 @@ class HTMLView:
                 <th><input type="checkbox" id="masterCheckbox" onclick="toggleSelectAll()"></th>
                 <th>Fecha Venta</th>
                 <th>ID Venta / Carrito</th>
-                <th>Cliente</th>
+                <th class="cliente">Cliente</th>
                 <th>SKU</th>
                 <th>Producto</th>
                 <th>Variante</th>

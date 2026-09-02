@@ -19,8 +19,8 @@ function convertirRawData() {
         const logisticType = ship.logistic_type || "";
 
         // 3. Evaluamos a qué grupo pertenece la orden
-        const esImprimir = (substatus === "ready_to_print");
-        const esImpreso = (substatus === "printed" || status === "ready_to_ship");
+        const esImprimir = (substatus === "ready_to_print" && status === "ready_to_ship");
+        const esImpreso = (status === "ready_to_ship" && logisticType === "cross_docking");
         const esRetiroLocal = (
             logisticType == "custom" ||
             logisticType == "not_specified" ||
@@ -156,8 +156,8 @@ function cargarTabla() {
         tbody.innerHTML += `<tr${trClass}>
             <td><input type="checkbox" id="${v.venta_id}" class="row-checkbox" value="${index}" onchange="actualizarBoton()"></td>
             <td><label for="${v.venta_id}">${v.fecha}</label></td>
-            <td style="background-color:#eee;"><label for="${v.venta_id}"><strong>${v.venta_id}</strong></label></td>
-            <td><label for="${v.venta_id}"><strong>${v.cliente}</strong></label></td>
+            <td><label for="${v.venta_id}"><strong>${v.venta_id}</strong></label></td>
+            <td class="cliente"><label for="${v.venta_id}"><strong>${v.cliente}</strong></label></td>
             <td><label for="${v.venta_id}">${skusHtml}</label></td>
             <td><label for="${v.venta_id}">${titulosHtml}</label></td>
             <td><label for="${v.venta_id}">${variantesHtml}</label></td>

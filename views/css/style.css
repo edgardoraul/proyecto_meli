@@ -57,9 +57,9 @@ table {
 
 th,
 td {
-    padding: 12px 15px;
+    padding: 0.5em;
     text-align: left;
-    font-size: 14px;
+    /* font-size: 14px; */
     vertical-align: top;
 }
 
@@ -79,9 +79,9 @@ tbody tr.fin-carrito td {
 
 .badge {
     padding: 6px 12px;
-    border-radius: 20px;
-    font-weight: bold;
-    font-size: 0.82em;
+    border-radius: 10px;
+    /* font-weight: bold;
+    font-size: 0.82em; */
     display: inline-block;
 }
 
@@ -107,12 +107,16 @@ tbody tr.fin-carrito td {
 }
 .cartel-renglones {
     margin-left: 15px;
-    padding: 10px 18px;
+    padding: 0.25em 0.5em;
     background-color: #f5f5f5;
     border: 1px solid #ccc;
     border-radius: 4px;
-    font-size: 14px;
+    /* font-size: 14px; */
     display: inline-block;
+}
+.cliente {
+    max-width: auto;
+    text-wrap: wrap;
 }
 .item-list {
     list-style: none;

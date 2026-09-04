@@ -14,10 +14,13 @@ body {
 }
 
 .actions {
-    margin-bottom: 15px;
+    align-items: center;
+    background-color: #f4f6f9;
     display: flex;
     gap: 10px;
-    align-items: center;
+    margin-bottom: 15px;
+    position: sticky;
+    top: 2px;
 }
 
 button {
@@ -54,7 +57,11 @@ table {
     overflow: hidden;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
-
+thead {
+    border-radius: 8px 8px 0 0;
+    position: sticky;
+    top: 40px;
+}
 th,
 td {
     padding: 0.5em;

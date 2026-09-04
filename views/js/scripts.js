@@ -116,7 +116,8 @@ function convertirRawData() {
 // Limpieza de datos repetidos en carritos
 function limpiarCarritos() {
     for (let i = ventasData.length - 1; i > 0; i--) {
-        if (ventasData[i].venta_id && ventasData[i].venta_id === ventasData[i - 1].venta_id) {
+        if (ventasData[i].venta_id && ventasData[i].venta_id === ventasData[i - 1].venta_id)
+        {
             ventasData[i].fecha = "";
             ventasData[i].venta_id = "";
             ventasData[i].cliente = "";
@@ -134,36 +135,36 @@ function cargarTabla() {
     tbody.innerHTML = '';
 
     ventasData.forEach((v, index) => {
-        let skusHtml = '<ul class="item-list">';
-        let titulosHtml = '<ul class="item-list">';
-        let variantesHtml = '<ul class="item-list">';
-        let cantidadesHtml = '<ul class="item-list">';
+        let skusHtml = '';
+        let titulosHtml = '';
+        let variantesHtml = '';
+        let cantidadesHtml = '';
 
         v.items.forEach(item => {
-            skusHtml += `<li class="item-row"><strong>${item.sku}</strong></li>`;
-            titulosHtml += `<li class="item-row">${item.titulo}</li>`;
-            variantesHtml += `<li class="item-row">${item.variante}</li>`;
-            cantidadesHtml += `<li class="item-row">${item.cantidad}</li>`;
+            skusHtml += `<strong>${item.sku}</strong>`;
+            titulosHtml += `${item.titulo}`;
+            variantesHtml += `${item.variante}`;
+            cantidadesHtml += `${item.cantidad}`;
         });
 
-        skusHtml += '</ul>';
-        titulosHtml += '</ul>';
-        variantesHtml += '</ul>';
-        cantidadesHtml += '</ul>';
+        skusHtml += '';
+        titulosHtml += '';
+        variantesHtml += '';
+        cantidadesHtml += '';
 
         let trClass = (index > 0 && v.venta_id !== "") ? ' class="borde-separador"' : '';
 
         tbody.innerHTML += `<tr${trClass}>
-            <td><input type="checkbox" id="${v.venta_id}" class="row-checkbox" value="${index}" onchange="actualizarBoton()"></td>
-            <td><label for="${v.venta_id}">${v.fecha}</label></td>
-            <td><label for="${v.venta_id}"><strong>${v.venta_id}</strong></label></td>
-            <td class="cliente"><label for="${v.venta_id}"><strong>${v.cliente}</strong></label></td>
-            <td><label for="${v.venta_id}">${skusHtml}</label></td>
-            <td><label for="${v.venta_id}">${titulosHtml}</label></td>
-            <td><label for="${v.venta_id}">${variantesHtml}</label></td>
-            <td><label for="${v.venta_id}">${cantidadesHtml}</label></td>
-            <td><label for="${v.venta_id}">${v.detalles || ''}</label></td>
-            <td><label for="${v.venta_id}"><span class="badge badge-${v.estado_rotulo}">${v.texto_rotulo}</span></label></td>
+            <td><input type="checkbox" id="${index}" class="row-checkbox" value="${index}" onchange="actualizarBoton()"></td>
+            <td><label for="${index}">${v.fecha}</label></td>
+            <td><label for="${index}"><strong>${v.venta_id}</strong></label></td>
+            <td class="cliente"><label for="${index}"><strong>${v.cliente}</strong></label></td>
+            <td><label for="${index}">${skusHtml}</label></td>
+            <td><label for="${index}">${titulosHtml}</label></td>
+            <td><label for="${index}">${variantesHtml}</label></td>
+            <td><label for="${index}">${cantidadesHtml}</label></td>
+            <td><label for="${index}">${v.detalles || ''}</label></td>
+            <td><label for="${index}"><span class="badge badge-${v.estado_rotulo}">${v.texto_rotulo}</span></label></td>
         </tr>`;
     });
 }

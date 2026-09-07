@@ -20,7 +20,7 @@ function convertirRawData() {
 
         // 3. Evaluamos a qué grupo pertenece la orden
         const esImprimir = (substatus === "ready_to_print" );
-        const esImpreso = (substatus === "ready_for_pickup" );
+        const esImpreso = (substatus === "ready_for_pickup" || substatus=== "printed");
         const esRetiroLocal = (
             logisticType == "custom" ||
             logisticType == "not_specified" ||

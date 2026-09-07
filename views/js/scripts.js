@@ -19,8 +19,8 @@ function convertirRawData() {
         const logisticType = ship.logistic_type || "";
 
         // 3. Evaluamos a qué grupo pertenece la orden
-        const esImprimir = (substatus === "ready_to_print" && status === "ready_to_ship");
-        const esImpreso = (status === "ready_to_ship" && logisticType === "cross_docking");
+        const esImprimir = (substatus === "ready_to_print" );
+        const esImpreso = (substatus === "ready_for_pickup" );
         const esRetiroLocal = (
             logisticType == "custom" ||
             logisticType == "not_specified" ||
@@ -113,7 +113,7 @@ function convertirRawData() {
     }
 }
 
-// Limpieza de datos repetidos en carritos
+// 10. impieza de datos repetidos en carritos
 function limpiarCarritos() {
     for (let i = ventasData.length - 1; i > 0; i--) {
         if (ventasData[i].venta_id && ventasData[i].venta_id === ventasData[i - 1].venta_id)
@@ -128,7 +128,7 @@ function limpiarCarritos() {
     }
 }
 
-// Carga del HTML de la tabla
+// 11. Carga del HTML de la tabla
 function cargarTabla() {
     const tbody = document.getElementById('tablaVentas');
     if (!tbody) return;
@@ -169,6 +169,7 @@ function cargarTabla() {
     });
 }
 
+// 12. Botones de exportación del CSV
 function toggleSelectAll() {
     const checkboxes = document.querySelectorAll('.row-checkbox');
     const master = document.getElementById('masterCheckbox');
@@ -210,6 +211,7 @@ function actualizarBoton() {
     btn.classList.toggle('active', esValido);
 }
 
+// 13. Exportar el CSV
 function generarCSV() {
     const seleccionados = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value));
     let csvLines = [["Nº Venta", "Cliente", "Código", "Producto", "Color", "Talle", "Cant.", "Detalles", "Nº Guía"].join(";")];
@@ -243,6 +245,7 @@ function generarCSV() {
     document.body.removeChild(link);
 }
 
+// 0. Carga las anteriores funciones una vez cargado el DOM.
 document.addEventListener('DOMContentLoaded', () => {
     convertirRawData();
     limpiarCarritos();

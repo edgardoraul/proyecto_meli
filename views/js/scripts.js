@@ -37,7 +37,8 @@ function convertirRawData() {
         );
 
         // 4. SI NO ES DE NINGUNO DE ESTOS GRUPOS, LA SALTAMOS (NO SE MOSTRARÁ)
-        if (!esImprimir && !esImpreso && !esRetiroLocal && !esEnViaje) {
+        // if (!esImprimir && !esImpreso && !esRetiroLocal && !esEnViaje) {
+        if (!esImprimir && !esImpreso && !esRetiroLocal) {
             continue; // Salta a la siguiente orden
         }
 

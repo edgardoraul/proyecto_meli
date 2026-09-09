@@ -100,13 +100,33 @@ function convertirRawData() {
             });
         }
 
+        // 8.1 Extraer las notas del vendedor en las operaciones
+        // 9. Extraer notas del vendedor (seller_notes)
+        let notasTexto = "";
+        if (Array.isArray(order.notas_vendedor)) {
+            let notasArr = [];
+
+            order.notas_vendedor.forEach(grupo => {
+                if (Array.isArray(grupo.results)) {
+                    grupo.results.forEach(res => {
+                        if (res && res.note) {
+                            notasArr.push(res.note);
+                        }
+                    });
+                }
+            });
+
+            notasTexto = notasArr.join(", ");
+        }
+
+
         // 9. Guardamos la orden lista en el arreglo final
         ventasData.push({
             venta_id: String(order.pack_id || order.id || ""),
             fecha: fecha,
             cliente: cliente,
             numero_guia: String(ship.tracking_number || ship.id || ""),
-            detalles: order.notes || "",
+            detalles: notasTexto,
             texto_rotulo: texto_rotulo,
             estado_rotulo: estado_rotulo,
             items: items

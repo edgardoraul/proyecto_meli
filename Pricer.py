@@ -151,27 +151,18 @@ def procesar_cuenta(cuenta_config: dict, mapa_precios: dict):
     logger.info("⚡ Descargando detalles de las publicaciones...")
     detalles = obtener_detalles_lote(headers, item_ids)
 
-    # Guardar datos crudos descargados en JSON y JS para inspección
+    # Guardar datos crudos descargados en JSON
     archivo_json = (
         DATA_DIR
         / f"publicaciones_{cuenta_config['nombre'].replace(' ', '_').lower()}.json"
     )
-    ## No es necesario el js
-    ## archivo_js = Path("views/js/temp_publicaciones.js")
 
     data_export = {"total": len(detalles), "results": detalles}
 
     with open(archivo_json, "w", encoding="utf-8") as f:
         json.dump(data_export, f, indent=4, ensure_ascii=False)
 
-    archivo_js.parent.mkdir(parents=True, exist_ok=True)
-    with open(archivo_js, "w", encoding="utf-8") as f:
-        f.write(
-            f"const TEMP_PUBLICACIONES = {json.dumps(data_export, indent=4, ensure_ascii=False)};\n"
-        )
-
     logger.info(f"✔ Archivo JSON guardado en: {archivo_json}")
-    logger.info(f"✔ Archivo JS guardado en: {archivo_js}")
 
     # =========================================================================
     # INICIO DE COMENTARIO: Lógica de actualización deshabilitada para pruebas

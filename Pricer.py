@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 import pandas as pd
 import requests
+from controllers.DescargaPrecios import DescargaPrecios
 
 from config.settings import CUENTAS, DATA_DIR, MELI_API_URL
 from models.auth import MeLiAuth
@@ -22,41 +23,45 @@ logger = logging.getLogger("Pricer")
 # Constantes de cálculo
 COEF_PRE = 1.35
 COEF_CLA = 1.25
-COSTO_FIJO = 700.0
+COSTO_FIJO = 700
+
+# Columnas del listado de precios
+id = "Artículo"
+precio_publico = "Precio"
 
 
-def cargar_precios_excel() -> dict:
-    archivo_excel = DATA_DIR / "precios.xls"
-    if not archivo_excel.exists():
-        logger.error(f"❌ No se encontró el archivo Excel en: {archivo_excel}")
+
+def cargar_precios_csv() -> dict:
+    archivo_csv = DATA_DIR / "PreciosDeArticulos.csv"
+    if not archivo_csv.exists():
+        logger.error(f"❌ No se encontró el archivo CSV en: {archivo_csv}")
         return {}
 
     try:
-        # xlrd es necesario para archivos .xls
-        df = pd.read_excel(archivo_excel, engine="xlrd")
-        df.columns = df.columns.str.strip().str.lower()
+        df = pd.read_csv(archivo_csv)
+        df.columns = df.columns.str.strip()
 
-        if "id" not in df.columns or "precio_publico" not in df.columns:
+        if id not in df.columns or precio_publico not in df.columns:
             logger.error(
-                "❌ El Excel debe contener las columnas 'id' y 'precio_publico'."
+                f"❌ El CSV debe contener las columnas {id} y {precio_publico}."
             )
             return {}
 
         precios_map = {}
         for _, row in df.iterrows():
-            item_id = str(row["id"]).strip().upper()
+            item_id = str(row[id]).strip().upper()
             try:
-                precio_base = float(row["precio_publico"])
+                precio_base = float(row[precio_publico])
                 precios_map[item_id] = precio_base
             except ValueError:
                 continue
 
         logger.info(
-            f"📊 Planilla Excel (.xls) cargada: {len(precios_map)} precios base encontrados."
+            f"📊 Planilla CSV cargada: {len(precios_map)} precios base encontrados."
         )
         return precios_map
     except Exception as e:
-        logger.error(f"❌ Error al leer la planilla Excel: {e}")
+        logger.error(f"❌ Error al leer la planilla CSV: {e}")
         return {}
 
 
@@ -164,10 +169,11 @@ def procesar_cuenta(cuenta_config: dict, mapa_precios: dict):
 
     logger.info(f"✔ Archivo JSON guardado en: {archivo_json}")
 
+"""
     # =========================================================================
     # INICIO DE COMENTARIO: Lógica de actualización deshabilitada para pruebas
     # =========================================================================
-    """
+
     for item in detalles:
         item_id = item.get("id")
         listing_type_id = item.get("listing_type_id")
@@ -180,20 +186,25 @@ def procesar_cuenta(cuenta_config: dict, mapa_precios: dict):
         
         # Nueva fórmula con redondeo a enteros (0 decimales)
         precio_calculado = round(
-            (((precio_publico - COSTO_FIJO) / COEF_CLA) * COEF_PRE) + COSTO_FIJO, 0
+            #(((precio_publico - COSTO_FIJO) / COEF_CLA) * COEF_PRE) + COSTO_FIJO, 0
+            precio_publico * COEF_PRE + COSTO_FIJO, 0
         )
 
         logger.info(f"[{item_id}] Actual: ${precio_actual} -> Calculado: ${precio_calculado}")
-    """
+
     # =========================================================================
     # FIN DE COMENTARIO
     # =========================================================================
-
+"""
 
 def main():
     logger.info("🏁 Inicio de prueba de descarga de publicaciones")
 
-    mapa_precios = cargar_precios_excel()
+    # 1. Descarga la lista de precios y genera/actualiza PreciosDeArticulos.XLS
+    DescargaPrecios()
+
+    # 2. Carga los precios del Excel generado
+    mapa_precios = cargar_precios_csv()
 
     for key, cuenta_config in CUENTAS.items():
         try:

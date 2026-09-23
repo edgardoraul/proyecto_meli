@@ -18,6 +18,9 @@ MELI_AUTH_URL = "https://auth.mercadolibre.com.ar/authorization"
 MELI_TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 REDIRECT_URI = "https://www.google.com"
 
+# URL base para el servicio de precios (reemplaza por la URL real)
+PRICER_API_URL = "http://localhost:8009/api.Dragonfish/"
+
 CUENTAS = {}
 
 for i in range(1, 4):

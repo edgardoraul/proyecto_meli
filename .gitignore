@@ -19,3 +19,6 @@ venv/
 *.html
 test_*.py
 views/js/temp_data.js
+PreciosDeArticulos.csv
+PreciosDeArticulos.xls
+PreciosDeArticulos.xslx

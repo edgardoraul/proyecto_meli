@@ -34,10 +34,12 @@ def DescargaPrecios() -> bool:
         }
 
         articulos_totales = []
+        raw_resultados = []
+        articulos_vistos = set()  # Conjunto para desduplicar por código de artículo
         page = 1
         limit_por_pagina = 200
         max_registros = 5000
-        url_endpoint = f"{PRICER_API_URL}/Preciodearticulo/"
+        url_endpoint = f"{PRICER_API_URL}/ConsultaStockYPrecios/"
 
         logger.info("📥 Iniciando descarga de lista PUB (más reciente)...")
 
@@ -46,7 +48,7 @@ def DescargaPrecios() -> bool:
                 "ListaDePrecio": "PUB",
                 "limit": limit_por_pagina,
                 "page": page,
-                "sort": "-FechaVigencia",  # Orden descendente por fecha más reciente
+                "sort": "Articulo",
             }
 
             res = requests.get(
@@ -65,19 +67,36 @@ def DescargaPrecios() -> bool:
             if not resultados:
                 break
 
+            raw_resultados.extend(resultados)
+
             for item in resultados:
+                cod_articulo = item.get("Articulo")
+
+                # Omitir si ya agregamos este código de artículo previamente
+                if not cod_articulo or cod_articulo in articulos_vistos:
+                    continue
+
+                precios = item.get("Precios", [])
+
+                # Busca el precio específico de la lista "Público"
+                precio_publico = next(
+                    (p.get("Precio") for p in precios if p.get("Lista") == "Público"),
+                    item.get("Precio"),  # Fallback si no está la lista "Público"
+                )
+
                 articulos_totales.append(
                     {
-                        "Artículo": item.get("Articulo"),
-                        "Precio": item.get("PrecioDirecto"),
+                        "Artículo": cod_articulo,
+                        "Precio": precio_publico,
                     }
                 )
+                articulos_vistos.add(cod_articulo)
 
                 if len(articulos_totales) >= max_registros:
                     break
 
             logger.info(
-                f"   Página {page} procesada. Registros: {len(articulos_totales)} / {min(max_registros, data.get('TotalRegistros', max_registros))}"
+                f"   Página {page} procesada. Artículos únicos: {len(articulos_totales)} / {min(max_registros, data.get('TotalRegistros', max_registros))}"
             )
 
             if not data.get("Siguiente"):
@@ -85,15 +104,24 @@ def DescargaPrecios() -> bool:
 
             page += 1
 
-        if not articulos_totales:
+        if not raw_resultados:
             logger.warning("⚠️ La API no devolvió artículos.")
             return False
 
-        # Guardar en data/PreciosDeArticulos.csv
+        # Guardar respuesta cruda completa para análisis
+        archivo_json_raw = DATA_DIR / "precios_raw.json"
+        with open(archivo_json_raw, "w", encoding="utf-8") as f:
+            json.dump(
+                {"TotalProcesados": len(raw_resultados), "Resultados": raw_resultados},
+                f,
+                indent=4,
+                ensure_ascii=False,
+            )
+        logger.info(f"✔ Estructura cruda JSON guardada en: {archivo_json_raw}")
+
+        # Guardar CSV con artículos únicos
         archivo_csv = DATA_DIR / "PreciosDeArticulos.csv"
         df = pd.DataFrame(articulos_totales)
-
-        # encoding="utf-8-sig" asegura la correcta lectura de caracteres especiales
         df.to_csv(archivo_csv, index=False, encoding="utf-8-sig")
 
         logger.info(f"✔ Archivo CSV guardado en: {archivo_csv}")

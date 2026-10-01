@@ -1,3 +1,5 @@
+# Archivo DescargaPrecios.py
+
 import json
 import logging
 import pandas as pd

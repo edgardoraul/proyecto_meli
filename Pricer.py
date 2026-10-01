@@ -169,48 +169,33 @@ def procesar_cuenta(cuenta_config: dict, mapa_precios: dict):
 
     logger.info(f"✔ Archivo JSON guardado en: {archivo_json}")
 
-
-# =========================================================================
-# SIMULACIÓN DE CÁLCULO DE PRECIOS PREMIUM (MODO TESTEO)
-# =========================================================================
-    publicaciones_procesadas = 0
-    publicaciones_coincidentes = 0
+"""
+    # =========================================================================
+    # INICIO DE COMENTARIO: Lógica de actualización deshabilitada para pruebas
+    # =========================================================================
 
     for item in detalles:
         item_id = item.get("id")
         listing_type_id = item.get("listing_type_id")
         precio_actual = item.get("price", 0.0)
 
-        # 1. Filtrar solo publicaciones Premium (gold_pro)
-        if listing_type_id != "gold_pro":
+        if listing_type_id != "gold_pro" or item_id not in mapa_precios:
             continue
 
-        publicaciones_procesadas += 1
-
-        # 2. Extraer el SKU y tomar sus primeros 7 caracteres
-        sku_raw = str(item.get("seller_custom_field") or "").strip().upper()
-        sku_7 = sku_raw[:7]
-
-        if not sku_7 or sku_7 not in mapa_precios:
-            logger.warning(
-                f"⚠️ [{item_id}] SKU '7 carac': '{sku_7}' (Raw: '{sku_raw}') no encontrado en la planilla de precios."
-            )
-            continue
-
-        publicaciones_coincidentes += 1
-        precio_publico = mapa_precios[sku_7]
-
-        # 3. Aplicar fórmula con redondeo a enteros
-        precio_calculado = round(precio_publico * COEF_PRE + COSTO_FIJO, 0)
-
-        logger.info(
-            f"🎯 [{item_id}] SKU: {sku_7} | Actual: ${precio_actual:,.2f} -> Calculado: ${precio_calculado:,.2f}"
+        precio_publico = mapa_precios[item_id]
+        
+        # Nueva fórmula con redondeo a enteros (0 decimales)
+        precio_calculado = round(
+            #(((precio_publico - COSTO_FIJO) / COEF_CLA) * COEF_PRE) + COSTO_FIJO, 0
+            precio_publico * COEF_PRE + COSTO_FIJO, 0
         )
 
-    logger.info(
-        f"📊 Resumen Cuenta 2: {publicaciones_procesadas} Premium analizadas, {publicaciones_coincidentes} vinculadas con éxito."
-    )
+        logger.info(f"[{item_id}] Actual: ${precio_actual} -> Calculado: ${precio_calculado}")
 
+    # =========================================================================
+    # FIN DE COMENTARIO
+    # =========================================================================
+"""
 
 def main():
     logger.info("🏁 Inicio de prueba de descarga de publicaciones")
@@ -221,7 +206,6 @@ def main():
     # 2. Carga los precios del Excel generado
     mapa_precios = cargar_precios_csv()
 
-
     for key, cuenta_config in CUENTAS.items():
         try:
             procesar_cuenta(cuenta_config, mapa_precios)
@@ -230,7 +214,6 @@ def main():
                 f"❌ Error procesando la cuenta {cuenta_config.get('nombre')}: {e}",
                 exc_info=True,
             )
-
 
     logger.info("🎉 Proceso de prueba finalizado.\n")
 

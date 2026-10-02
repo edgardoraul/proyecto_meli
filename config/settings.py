@@ -1,6 +1,4 @@
-"""
-config/settings.py
-"""
+# Archivo config/settings.py
 
 import os
 from pathlib import Path
@@ -42,6 +40,6 @@ for i in range(1, 4):
         }
 
 
-# Bases de datos donde obtiene información
-DBPRECIOS = ["M-LIBRE", "SMARTIN"] # De la cual obtiene los precios PUB
-DBSTOCKS = ["PIEZA", "MENDOZA", "TUCUMAN"] # De donde obtiene los stocks
+# Bases de datos desde donde obtiene información
+DBPRECIOS = ["M-LIBRE", "SMARTIN"] # Los precios PUB
+DBSTOCKS = ["PIEZA", "MENDOZA", "TUCUMAN"] # Los stocks

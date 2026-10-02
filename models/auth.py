@@ -1,8 +1,7 @@
-"""
-models/auth.py
---------------
-Gestor de autenticación basado en archivos JSON de tokens preexistentes.
-"""
+# Archivo models/auth.py
+
+# Gestor de autenticación basado en archivos JSON de tokens preexistentes.
+
 
 import json
 import logging

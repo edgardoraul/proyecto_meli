@@ -1,4 +1,4 @@
-# Archivo DescargaPrecios.py
+# Archivo controller/DescargaPrecios.py
 
 import json
 import logging

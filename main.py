@@ -1,3 +1,5 @@
+# Archivo main.py
+
 import logging
 import sys
 from config.settings import CUENTAS, DATA_DIR

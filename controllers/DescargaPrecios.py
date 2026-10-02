@@ -67,7 +67,7 @@ def DescargaPrecios() -> bool:
         limit_por_pagina = 200
         url_endpoint = f"{PRICER_API_URL}/ConsultaStockYPrecios/"
 
-        logger.info("📥 Iniciando descarga completa de lista PUB desde Dragonfish...")
+        logger.info("📥 Iniciando descarga completa de lista de preciós Público (PUB) desde el PescadoDragón ...")
 
         while True:
             # CAMBIO PRINCIPAL: Parámetros corregidos según documentación oficial
@@ -114,7 +114,7 @@ def DescargaPrecios() -> bool:
                     (
                         p.get("Precio")
                         for p in precios
-                        if str(p.get("Lista")).strip().upper() in ("PUB", "PÚBLICO", "PUBLICO")
+                        if str(p.get("Lista")).strip().upper() in ("PUB", "Público")
                     ),
                     item.get("Precio"),
                 )

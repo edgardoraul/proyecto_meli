@@ -5,9 +5,10 @@ import logging
 import pandas as pd
 import requests
 
-from config.settings import DATA_DIR, PRICER_API_URL
+from config.settings import DATA_DIR, PRICER_API_URL, DBPRECIOS
 
 logger = logging.getLogger("Pricer")
+
 
 
 def DescargaPrecios() -> bool:
@@ -31,7 +32,7 @@ def DescargaPrecios() -> bool:
         headers = {
             "IdCliente": str(id_cliente),
             "Authorization": str(jw_token),
-            "BaseDeDatos": "M-LIBRE",
+            "BaseDeDatos": DBPRECIOS[0],
             "Content-Type": "application/json",
         }
 
@@ -88,7 +89,7 @@ def DescargaPrecios() -> bool:
 
                 articulos_totales.append(
                     {
-                        "Artículo": cod_articulo,
+                        "Articulo": cod_articulo,
                         "Precio": precio_publico,
                     }
                 )

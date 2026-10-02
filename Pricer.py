@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 from controllers.DescargaPrecios import DescargaPrecios
 
-from config.settings import CUENTAS, DATA_DIR, MELI_API_URL
+from config.settings import CUENTAS, DATA_DIR, MELI_API_URL, DBPRECIOS
 from models.auth import MeLiAuth
 
 LOG_FILE = DATA_DIR / "pricer.log"
@@ -28,7 +28,7 @@ COEF_CLA = 1.25
 COSTO_FIJO = 700
 
 # Columnas del listado de precios
-id = "Artículo"
+id = "Articulo"
 precio_publico = "Precio"
 
 

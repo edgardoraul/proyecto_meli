@@ -40,3 +40,8 @@ for i in range(1, 4):
             "usa_pkce": usa_pkce,
             "token_file": DATA_DIR / f"tokens_cuenta_{i}.json",
         }
+
+
+# Bases de datos donde obtiene información
+DBPRECIOS = ["M-LIBRE", "SMARTIN"] # De la cual obtiene los precios PUB
+DBSTOCKS = ["PIEZA", "MENDOZA", "TUCUMAN"] # De donde obtiene los stocks

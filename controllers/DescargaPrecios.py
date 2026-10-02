@@ -10,7 +10,6 @@ from config.settings import DATA_DIR, PRICER_API_URL, DBPRECIOS
 logger = logging.getLogger("Pricer")
 
 
-
 def DescargaPrecios() -> bool:
     archivo_token = DATA_DIR / "token_pricer_meli.json"
 
@@ -41,14 +40,19 @@ def DescargaPrecios() -> bool:
         articulos_vistos = set()  # Conjunto para desduplicar por código de artículo
         page = 1
         limit_por_pagina = 200
-        max_registros = 5000
         url_endpoint = f"{PRICER_API_URL}/ConsultaStockYPrecios/"
 
-        logger.info("📥 Iniciando descarga de lista PUB (más reciente)...")
+        logger.info("📥 Iniciando descarga completa de lista PUB desde Dragonfish...")
 
-        while len(articulos_totales) < max_registros:
+        while True:
+            # CAMBIO PRINCIPAL: Parámetros corregidos según documentación oficial
+            # 1. 'lista' en lugar de 'ListaDePrecio'
+            # 2. 'stockcero': "true" en minúsculas para incluir artículos sin stock
+            # 3. 'preciocero': "false" para omitir artículos sin precio
             params = {
-                "ListaDePrecio": "PUB",
+                "lista": "PUB",
+                "stockcero": "true",
+                "preciocero": "false",
                 "limit": limit_por_pagina,
                 "page": page,
                 "sort": "Articulo",
@@ -75,16 +79,19 @@ def DescargaPrecios() -> bool:
             for item in resultados:
                 cod_articulo = item.get("Articulo")
 
-                # Omitir si ya agregamos este código de artículo previamente
                 if not cod_articulo or cod_articulo in articulos_vistos:
                     continue
 
                 precios = item.get("Precios", [])
 
-                # Busca el precio específico de la lista "Público"
+                # Extraer el precio de la lista de precios o el del nivel raíz
                 precio_publico = next(
-                    (p.get("Precio") for p in precios if p.get("Lista") == "Público"),
-                    item.get("Precio"),  # Fallback si no está la lista "Público"
+                    (
+                        p.get("Precio")
+                        for p in precios
+                        if str(p.get("Lista")).strip().upper() in ("PUB", "PÚBLICO", "PUBLICO")
+                    ),
+                    item.get("Precio"),
                 )
 
                 articulos_totales.append(
@@ -95,14 +102,13 @@ def DescargaPrecios() -> bool:
                 )
                 articulos_vistos.add(cod_articulo)
 
-                if len(articulos_totales) >= max_registros:
-                    break
-
+            total_api = data.get("TotalRegistros", "Desconocido")
             logger.info(
-                f"   Página {page} procesada. Artículos únicos: {len(articulos_totales)} / {min(max_registros, data.get('TotalRegistros', max_registros))}"
+                f"   Página {page} procesada ({len(resultados)} recs). Artículos únicos acumulados: {len(articulos_totales)} / Total API: {total_api}"
             )
 
-            if not data.get("Siguiente"):
+            # Condición de salida cuando se procesan todos los registros
+            if len(resultados) < limit_por_pagina:
                 break
 
             page += 1

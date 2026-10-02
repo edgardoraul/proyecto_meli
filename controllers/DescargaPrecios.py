@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 import pandas as pd
 import requests
 
@@ -11,6 +12,27 @@ logger = logging.getLogger("Pricer")
 
 
 def DescargaPrecios() -> bool:
+    archivo_csv = DATA_DIR / "PreciosDeArticulos.csv"
+
+    # =========================================================================
+    # SISTEMA DE CONTROL DE ANTIGÜEDAD (CACHE DE 30 MINUTOS)
+    # Función: Verifica si el archivo 'PreciosDeArticulos.csv' ya existe y si su
+    # última modificación fue hace menos de 30 minutos (1800 segundos). Si se
+    # cumple la condición, omite la descarga vía API para no perder tiempo y
+    # permite continuar directamente con los procesos siguientes.
+    # =========================================================================
+    TIEMPO_MAXIMO_SEGUNDOS = 30 * 60  # 30 minutos
+
+    if archivo_csv.exists():
+        antiguedad_segundos = time.time() - archivo_csv.stat().st_mtime
+        if antiguedad_segundos < TIEMPO_MAXIMO_SEGUNDOS:
+            minutos_transcurridos = int(antiguedad_segundos // 60)
+            logger.info(
+                f"⏩ Descarga omitida: El archivo '{archivo_csv.name}' fue generado hace {minutos_transcurridos} min "
+                f"(antigüedad menor a 30 min). Se utilizarán los datos descargados previamente."
+            )
+            return True
+
     archivo_token = DATA_DIR / "token_pricer_meli.json"
 
     if not archivo_token.exists():
@@ -37,7 +59,10 @@ def DescargaPrecios() -> bool:
 
         articulos_totales = []
         raw_resultados = []
-        articulos_vistos = set()  # Conjunto para desduplicar por código de artículo
+
+        # Conjunto para desduplicar por código de artículo
+        articulos_vistos = set()
+
         page = 1
         limit_por_pagina = 200
         url_endpoint = f"{PRICER_API_URL}/ConsultaStockYPrecios/"
@@ -117,7 +142,7 @@ def DescargaPrecios() -> bool:
             logger.warning("⚠️ La API no devolvió artículos.")
             return False
 
-        # Guardar respuesta cruda completa para análisis
+        # Guardar respuesta cruda completa
         archivo_json_raw = DATA_DIR / "precios_raw.json"
         with open(archivo_json_raw, "w", encoding="utf-8") as f:
             json.dump(
@@ -128,8 +153,7 @@ def DescargaPrecios() -> bool:
             )
         logger.info(f"✔ Estructura cruda JSON guardada en: {archivo_json_raw}")
 
-        # Guardar CSV con artículos únicos
-        archivo_csv = DATA_DIR / "PreciosDeArticulos.csv"
+        # Guardar CSV consolidado
         df = pd.DataFrame(articulos_totales)
         df.to_csv(archivo_csv, index=False, encoding="utf-8-sig")
 

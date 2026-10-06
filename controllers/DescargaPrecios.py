@@ -21,7 +21,7 @@ def DescargaPrecios() -> bool:
     # cumple la condición, omite la descarga vía API para no perder tiempo y
     # permite continuar directamente con los procesos siguientes.
     # =========================================================================
-    TIEMPO_MAXIMO_SEGUNDOS = 30 * 60  # 30 minutos
+    TIEMPO_MAXIMO_SEGUNDOS = 300 * 600  # 30 minutos
 
     if archivo_csv.exists():
         antiguedad_segundos = time.time() - archivo_csv.stat().st_mtime
@@ -67,7 +67,7 @@ def DescargaPrecios() -> bool:
         limit_por_pagina = 200
         url_endpoint = f"{PRICER_API_URL}/ConsultaStockYPrecios/"
 
-        logger.info("📥 Iniciando descarga completa de lista de preciós Público (PUB) desde el PescadoDragón ...")
+        logger.info("📥 Desgarcando lista de precios Público (PUB) desde el PescadoDragón 🐟")
 
         while True:
             # CAMBIO PRINCIPAL: Parámetros corregidos según documentación oficial

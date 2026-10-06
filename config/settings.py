@@ -4,6 +4,11 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Constantes de cálculo de precios
+COEF_PRE = 1.35
+COEF_CLA = 1.25
+COSTO_FIJO = 700
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)

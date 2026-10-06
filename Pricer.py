@@ -8,6 +8,9 @@ import pandas as pd
 import requests
 from controllers.DescargaPrecios import DescargaPrecios
 
+# IMPORTACIÓN 1: Se importa la lógica de actualización desde el controller dedicado
+from controllers.PricerUpdater import actualizar_precios_cuenta
+
 from config.settings import CUENTAS, DATA_DIR, MELI_API_URL, DBPRECIOS
 from models.auth import MeLiAuth
 
@@ -22,10 +25,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Pricer")
 
-# Constantes de cálculo
-COEF_PRE = 1.35
-COEF_CLA = 1.25
-COSTO_FIJO = 700
 
 # Columnas del listado de precios
 id = "Articulo"
@@ -171,33 +170,10 @@ def procesar_cuenta(cuenta_config: dict, mapa_precios: dict):
 
     logger.info(f"✔ Archivo JSON guardado en: {archivo_json}")
 
-"""
-    # =========================================================================
-    # INICIO DE COMENTARIO: Lógica de actualización deshabilitada para pruebas
-    # =========================================================================
 
-    for item in detalles:
-        item_id = item.get("id")
-        listing_type_id = item.get("listing_type_id")
-        precio_actual = item.get("price", 0.0)
-
-        if listing_type_id != "gold_pro" or item_id not in mapa_precios:
-            continue
-
-        precio_publico = mapa_precios[item_id]
-        
-        # Nueva fórmula con redondeo a enteros (0 decimales)
-        precio_calculado = round(
-            #(((precio_publico - COSTO_FIJO) / COEF_CLA) * COEF_PRE) + COSTO_FIJO, 0
-            precio_publico * COEF_PRE + COSTO_FIJO, 0
-        )
-
-        logger.info(f"[{item_id}] Actual: ${precio_actual} -> Calculado: ${precio_calculado}")
-
-    # =========================================================================
-    # FIN DE COMENTARIO
-    # =========================================================================
-"""
+# INTEGRACIÓN 2: Ejecución del proceso de actualización mediante PricerUpdater.py
+    logger.info("🔄 Iniciando proceso de actualización de precios Premium...")
+    actualizar_precios_cuenta(cuenta_config, detalles, mapa_precios, headers)
 
 def main():
     logger.info("🏁 Inicio de prueba de descarga de publicaciones")

@@ -6,29 +6,23 @@ logger = logging.getLogger("Pricer")
 
 
 def obtener_sku_articulo(item: dict) -> str:
-    """Extrae el SKU revisando campos directos, atributos e iterando variaciones."""
-    # 1. Campo directo a nivel ítem
     sku = item.get("seller_custom_field")
-    if sku:
+    if sku and str(sku).strip():
         return str(sku).strip().upper()
 
-    # 2. Atributos a nivel ítem
     for attr in item.get("attributes", []):
-        if attr.get("id") == "SELLER_SKU" and attr.get("value_name"):
+        if attr.get("id") in ("SELLER_SKU", "SKU") and attr.get("value_name"):
             return str(attr.get("value_name")).strip().upper()
 
-    # 3. Recorrer todas las variaciones
-    for variation in item.get("variations", []):
-        var_sku = variation.get("seller_custom_field")
-        if var_sku:
-            return str(var_sku).strip().upper()
-
-        for attr in variation.get("attributes", []):
-            if attr.get("id") == "SELLER_SKU" and attr.get("value_name"):
+    for var in item.get("variations", []):
+        v_sku = var.get("seller_custom_field")
+        if v_sku and str(v_sku).strip():
+            return str(v_sku).strip().upper()
+        for attr in var.get("attributes", []):
+            if attr.get("id") in ("SELLER_SKU", "SKU") and attr.get("value_name"):
                 return str(attr.get("value_name")).strip().upper()
 
     return ""
-
 
 def actualizar_precios_cuenta(
     cuenta_config: dict, detalles_items: list, mapa_precios: dict, headers: dict

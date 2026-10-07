@@ -90,46 +90,9 @@ def obtener_todas_publicaciones(headers: dict, user_id: int) -> list:
 
     return ids
 
-def extraer_sku(data: dict) -> str | None:
-    """Busca el SKU en todas las ubicaciones posibles dentro del JSON de MeLi."""
-    if not isinstance(data, dict):
-        return None
-
-    # 1. Campo legacy
-    scf = data.get("seller_custom_field")
-    if scf and str(scf).strip():
-        return str(scf).strip()
-
-    # 2. Atributos estándar y combinaciones
-    for list_key in ["attributes", "attribute_combinations"]:
-        for attr in data.get(list_key, []):
-            if attr.get("id") in ("SELLER_SKU", "SKU", "SELLER_CUSTOM_FIELD"):
-                # Nombre de valor directo
-                val_name = attr.get("value_name")
-                if val_name and str(val_name).strip():
-                    return str(val_name).strip()
-
-                # Lista de valores
-                values = attr.get("values", [])
-                if values and isinstance(values, list) and len(values) > 0:
-                    first_val = values[0]
-                    if isinstance(first_val, dict):
-                        name = first_val.get("name")
-                        if name and str(name).strip():
-                            return str(name).strip()
-
-                # ID de valor
-                val_id = attr.get("value_id")
-                if val_id and str(val_id).strip():
-                    return str(val_id).strip()
-
-    return None
-
 
 def obtener_detalles_lote(headers: dict, item_ids: list) -> list:
-    detalles_raw = []
-
-    # 1. Consulta por lotes (20 en 20)
+    detalles = []
     for i in range(0, len(item_ids), 20):
         chunk = item_ids[i : i + 20]
         ids_str = ",".join(chunk)
@@ -140,59 +103,10 @@ def obtener_detalles_lote(headers: dict, item_ids: list) -> list:
             if res.status_code == 200:
                 for item_data in res.json():
                     if item_data.get("code") == 200:
-                        detalles_raw.append(item_data.get("body", {}))
+                        detalles.append(item_data.get("body", {}))
         except Exception as e:
             logger.warning(f"Error consultando lote de ítems: {e}")
-
-    detalles_finales = []
-
-    # 2. Verificación, re-consulta individual e inyección/normalización de SKU
-    for item in detalles_raw:
-        item_id = item.get("id")
-        variaciones = item.get("variations", [])
-        tiene_variantes = bool(variaciones)
-
-        # Determinar si el multiget vino incompleto de SKUs
-        necesita_reconsulta = False
-        if tiene_variantes:
-            for v in variaciones:
-                if not extraer_sku(v):
-                    necesita_reconsulta = True
-                    break
-        else:
-            if not extraer_sku(item):
-                necesita_reconsulta = True
-
-        # Si faltan SKUs en el multiget, forzar GET individual completo
-        if necesita_reconsulta and item_id:
-            try:
-                res_indiv = requests.get(f"{MELI_API_URL}/items/{item_id}", headers=headers, timeout=10)
-                if res_indiv.status_code == 200:
-                    item = res_indiv.json()
-            except Exception as e:
-                logger.warning(f"Error al re-consultar ítem individual {item_id}: {e}")
-
-        # NORMALIZACIÓN: Inyectar el SKU en seller_custom_field para que PricerUpdater lo encuentre
-        if bool(item.get("variations")):
-            for v in item.get("variations", []):
-                sku_v = extraer_sku(v)
-                if sku_v:
-                    v["seller_custom_field"] = sku_v
-
-            # Asignar al nivel raíz el SKU de la primera variante si el raíz está vacío
-            sku_root = extraer_sku(item)
-            if not sku_root and item.get("variations"):
-                sku_root = item["variations"][0].get("seller_custom_field")
-            if sku_root:
-                item["seller_custom_field"] = sku_root
-        else:
-            sku_item = extraer_sku(item)
-            if sku_item:
-                item["seller_custom_field"] = sku_item
-
-        detalles_finales.append(item)
-
-    return detalles_finales
+    return detalles
 
 
 def procesar_cuenta(cuenta_config: dict, mapa_precios: dict):

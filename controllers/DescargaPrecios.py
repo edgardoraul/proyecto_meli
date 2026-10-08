@@ -21,7 +21,7 @@ def DescargaPrecios() -> bool:
     # cumple la condición, omite la descarga vía API para no perder tiempo y
     # permite continuar directamente con los procesos siguientes.
     # =========================================================================
-    TIEMPO_MAXIMO_SEGUNDOS = 300 * 600  # 30 minutos
+    TIEMPO_MAXIMO_SEGUNDOS = 30 * 60  # 30 minutos
 
     if archivo_csv.exists():
         antiguedad_segundos = time.time() - archivo_csv.stat().st_mtime

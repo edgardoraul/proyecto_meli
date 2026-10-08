@@ -16,6 +16,7 @@ venv/
 .venv/
 
 # Archivos generados
+*.pdf
 *.html
 test_*.py
 views/js/temp_data.js

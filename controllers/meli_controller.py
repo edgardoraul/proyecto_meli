@@ -149,12 +149,8 @@ class MeLiController:
         # INYECCIÓN DEL ACCESS TOKEN: Se agrega el token al diccionario que lee el JS
         data_final = {
             "account": self.account_name,
-            "access_token": self.access_token,
-            "token_type": self.token_type,
-            "expires_in": self.expires_in,
-            "scope": self.scope,
-            "user_id": self.user_id,
-            "refresh_token": self.refresh_token,
+            "access_token": self.access_token,  # <--- Inyección del token activo
+            
             "results": ordenes
         }
 

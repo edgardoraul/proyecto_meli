@@ -1,3 +1,9 @@
+// ==============================================================================
+// ARCHIVO: views/js/scripts.js
+// DESCRIPCIÓN: Script de la interfaz web para renderizado de tabla, exportación CSV
+//              y descarga directa de rótulos de envío desde la API de MeLi.
+// ==============================================================================
+
 let ventasData = [];
 
 // Convierte TEMP_DATA (JSON crudo) al formato estructurado para la tabla
@@ -19,8 +25,8 @@ function convertirRawData() {
         const logisticType = ship.logistic_type || "";
 
         // 3. Evaluamos a qué grupo pertenece la orden
-        const esImprimir = (substatus === "ready_to_print" );
-        const esImpreso = (substatus === "ready_for_pickup" || substatus=== "printed");
+        const esImprimir = (substatus === "ready_to_print");
+        const esImpreso = (substatus === "ready_for_pickup" || substatus === "printed");
         const esRetiroLocal = (
             logisticType == "custom" ||
             logisticType == "not_specified" ||
@@ -134,11 +140,10 @@ function convertirRawData() {
     }
 }
 
-// 10. impieza de datos repetidos en carritos
+// 10. Limpieza de datos repetidos en carritos
 function limpiarCarritos() {
     for (let i = ventasData.length - 1; i > 0; i--) {
-        if (ventasData[i].venta_id && ventasData[i].venta_id === ventasData[i - 1].venta_id)
-        {
+        if (ventasData[i].venta_id && ventasData[i].venta_id === ventasData[i - 1].venta_id) {
             ventasData[i].fecha = "";
             ventasData[i].venta_id = "";
             ventasData[i].cliente = "";
@@ -185,7 +190,7 @@ function cargarTabla() {
             <td><label for="${index}">${variantesHtml}</label></td>
             <td><label for="${index}">${cantidadesHtml}</label></td>
             <td><label for="${index}">${v.detalles || ''}</label></td>
-            <td><button class="button badge-${v.estado_rotulo}">${v.texto_rotulo}</button></td>
+            <td><button class="button badge-${v.estado_rotulo}" onclick="imprimirRotuloIndividual('${index}')">${v.texto_rotulo}</button></td>
         </tr>`;
     });
 }
@@ -232,8 +237,10 @@ function actualizarBoton() {
     btn.disabled = !esValido;
     btn.classList.toggle('active', esValido);
 
-    btnRots.disabled = !esValido;
-    btnRots.classList.toggle('active', esValido);
+    if (btnRots) {
+        btnRots.disabled = !esValido;
+        btnRots.classList.toggle('active', esValido);
+    }
 }
 
 // 13. Exportar el CSV
@@ -278,38 +285,175 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+// ==============================================================================
+// FUNCIONES DE IMPRESIÓN DIRECTA DE RÓTULOS (SIN SERVIDOR LOCAL)
+// ==============================================================================
 /**
- * Recolecta la lista de IDs de envío (shipment_ids) correspondientes a las
- * casillas marcadas en la tabla y los envía al backend o descarga directa.
+ * Consulta la API oficial de Mercado Libre (/shipment_labels) conforme a
+ * la documentación de Mercado Envíos 2 y descarga los rótulos en formato PDF.
  */
-function imprimirRotulos() {
-    // 1. Obtiene los índices de las filas que tienen el checkbox marcado
+async function imprimirRotulos() {
+    // 1. Validar presencia de TEMP_DATA y su access_token
+    if (typeof TEMP_DATA === 'undefined' || !TEMP_DATA.access_token) {
+        alert("❌ No se encontró el 'access_token' en TEMP_DATA.\nVerifique que Python lo haya inyectado al generar views/js/temp_data.js.");
+        return;
+    }
+
+    const tokenActivo = TEMP_DATA.access_token;
+    const rawOrders = Array.isArray(TEMP_DATA) ? TEMP_DATA : (TEMP_DATA.results || []);
+
+    // 2. Obtener los índices de las filas marcadas en la tabla
     const seleccionados = Array.from(document.querySelectorAll('.row-checkbox:checked'))
         .map(cb => parseInt(cb.value));
 
-    // 2. Crea la colección evitando duplicados (ej: productos del mismo carrito)
+    if (seleccionados.length === 0) {
+        alert("⚠️ Seleccione al menos una venta para imprimir sus rótulos.");
+        return;
+    }
+
+    // 3. Extraer el shipment_id numérico puro (shipping_info.id o shipping.id) según API MeLi
     const coleccionShipments = [];
 
     seleccionados.forEach(idx => {
         const venta = ventasData[idx];
-        if (venta && venta.numero_guia && venta.numero_guia.trim() !== "") {
-            if (!coleccionShipments.includes(venta.numero_guia)) {
-                coleccionShipments.push(venta.numero_guia);
+        if (!venta) return;
+
+        // Búsqueda del ID de envío interno en el JSON original
+        const orderOriginal = rawOrders[idx];
+        let shipmentIdReal = "";
+
+        if (orderOriginal) {
+            const shipInfo = orderOriginal.shipping_info || {};
+            const shipBase = orderOriginal.shipping || {};
+            shipmentIdReal = String(shipInfo.id || shipBase.id || "");
+        }
+
+        // Respaldo secundario si no se halla en orderOriginal
+        if (!shipmentIdReal || shipmentIdReal === "undefined") {
+            shipmentIdReal = String(venta.numero_guia || "").trim();
+        }
+
+        if (shipmentIdReal && shipmentIdReal !== "" && shipmentIdReal !== "undefined") {
+            if (!coleccionShipments.includes(shipmentIdReal)) {
+                coleccionShipments.push(shipmentIdReal);
             }
         }
     });
 
-    // 3. Validación de colección vacía
+    // 4. Validaciones reglamentarias de la documentación oficial de MeLi
     if (coleccionShipments.length === 0) {
-        alert("⚠️ No se encontraron números de envío válidos en las filas seleccionadas.");
+        alert("⚠️ No se encontraron IDs de envío válidos (shipment_id) en las filas seleccionadas.");
         return;
     }
 
-    console.log(`🖨️ Colección de envíos lista (${coleccionShipments.length} ítems):`, coleccionShipments);
+    if (coleccionShipments.length > 50) {
+        alert(`⚠️ Mercado Libre permite un máximo de 50 rótulos por consulta. Seleccionó ${coleccionShipments.length}.`);
+        return;
+    }
 
-    // 4. Une los IDs mediante comas para la consulta masiva de Mercado Libre
+    console.log(`🖨️ Solicitando PDF a Mercado Libre para ${coleccionShipments.length} envío(s):`, coleccionShipments);
+
+    // 5. Construcción de URL y Header conforme a la especificación cURL oficial:
+    // GET -H 'Authorization: Bearer $ACCESS_TOKEN' https://api.mercadolibre.com/shipment_labels?shipment_ids=ID1,ID2&response_type=pdf
     const shipmentIdsParam = coleccionShipments.join(',');
+    const urlApi = `https://api.mercadolibre.com/shipment_labels?shipment_ids=${shipmentIdsParam}&response_type=pdf`;
 
-    // 5. Opción A: Abre la descarga PDF directa llamando al servidor local/backend
-    window.open(`/descargar_rotulos?shipments=${shipmentIdsParam}`, '_blank');
+    try {
+        const response = await fetch(urlApi, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${tokenActivo}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+
+            // Diagnóstico explícito de error 400
+            if (response.status === 400) {
+                throw new Error(`Error 400 de Mercado Libre: ${errorText}\n\nVerifique:\n- Estado del envío (debe ser 'ready_to_ship' y subestado 'ready_to_print' o 'printed').\n- Tipo de logística (Fulfillment no permite imprimir etiquetas desde la API).\n- Límite máximo de 50 shipment_ids.`);
+            }
+
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        // 6. Generar el Blob binario del PDF y abrirlo directamente en el navegador
+        const blobPdf = await response.blob();
+        const blobUrl = URL.createObjectURL(blobPdf);
+        window.open(blobUrl, '_blank');
+
+    } catch (error) {
+        console.error("❌ Error al descargar rótulos:", error);
+        alert(`❌ Error al consultar la API de Mercado Libre:\n${error.message}`);
+    }
+}
+
+
+/**
+ * Impresión individual: obtiene el shipment_id real desde TEMP_DATA para la fila
+ * seleccionada y descarga su rótulo en PDF directamente desde Mercado Libre.
+ */
+async function imprimirRotuloIndividual(index) {
+    // 1. Validar presencia de TEMP_DATA y access_token
+    if (typeof TEMP_DATA === 'undefined' || !TEMP_DATA.access_token) {
+        alert("❌ No se encontró el 'access_token' en TEMP_DATA.\nVerifique que Python lo haya inyectado al generar views/js/temp_data.js.");
+        return;
+    }
+
+    const tokenActivo = TEMP_DATA.access_token;
+    const rawOrders = Array.isArray(TEMP_DATA) ? TEMP_DATA : (TEMP_DATA.results || []);
+    const orderOriginal = rawOrders[index];
+
+    // 2. Extraer el shipment_id numérico interno de Mercado Libre
+    let shipmentIdReal = "";
+    if (orderOriginal) {
+        const shipInfo = orderOriginal.shipping_info || {};
+        const shipBase = orderOriginal.shipping || {};
+        shipmentIdReal = String(shipInfo.id || shipBase.id || "");
+    }
+
+    // Respaldo secundario si no se halla en orderOriginal
+    if (!shipmentIdReal || shipmentIdReal === "undefined") {
+        if (ventasData[index]) {
+            shipmentIdReal = String(ventasData[index].numero_guia || "").trim();
+        }
+    }
+
+    if (!shipmentIdReal || shipmentIdReal === "undefined" || shipmentIdReal === "") {
+        alert("⚠️ Esta orden no posee un ID de envío (shipment_id) válido para imprimir.");
+        return;
+    }
+
+    console.log(`🖨️ Solicitando rótulo individual a MeLi (Envío ID: ${shipmentIdReal})...`);
+
+    // 3. Petición GET a la API oficial de Mercado Libre
+    const urlApi = `https://api.mercadolibre.com/shipment_labels?shipment_ids=${shipmentIdReal}&response_type=pdf`;
+
+    try {
+        const response = await fetch(urlApi, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${tokenActivo}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+
+            if (response.status === 400) {
+                throw new Error(`Error 400 de Mercado Libre: ${errorText}\n\nVerifique:\n- Que el estado del envío sea 'ready_to_ship' / 'ready_to_print' o 'printed'.\n- Que el tipo de logística permita imprimir etiquetas.`);
+            }
+
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        // 4. Convertir respuesta a Blob PDF y abrirlo directamente en el navegador
+        const blobPdf = await response.blob();
+        const blobUrl = URL.createObjectURL(blobPdf);
+        window.open(blobUrl, '_blank');
+
+    } catch (error) {
+        console.error("❌ Error al descargar rótulo individual:", error);
+        alert(`❌ Error al descargar el rótulo individual:\n${error.message}`);
+    }
 }

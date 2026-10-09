@@ -203,6 +203,7 @@ function toggleSelectAll() {
 function actualizarBoton() {
     const checkboxes = document.querySelectorAll('.row-checkbox:checked');
     const btn = document.getElementById('btnCSV');
+    const btnRots = document.getElementById('btnRots');
     const cartel = document.getElementById('cartelRenglones');
 
     let totalRenglones = 0;
@@ -230,6 +231,9 @@ function actualizarBoton() {
     const esValido = totalRenglones > 0 && totalRenglones <= 20;
     btn.disabled = !esValido;
     btn.classList.toggle('active', esValido);
+
+    btnRots.disabled = !esValido;
+    btnRots.classList.toggle('active', esValido);
 }
 
 // 13. Exportar el CSV
@@ -272,3 +276,40 @@ document.addEventListener('DOMContentLoaded', () => {
     limpiarCarritos();
     cargarTabla();
 });
+
+
+/**
+ * Recolecta la lista de IDs de envío (shipment_ids) correspondientes a las
+ * casillas marcadas en la tabla y los envía al backend o descarga directa.
+ */
+function imprimirRotulos() {
+    // 1. Obtiene los índices de las filas que tienen el checkbox marcado
+    const seleccionados = Array.from(document.querySelectorAll('.row-checkbox:checked'))
+        .map(cb => parseInt(cb.value));
+
+    // 2. Crea la colección evitando duplicados (ej: productos del mismo carrito)
+    const coleccionShipments = [];
+
+    seleccionados.forEach(idx => {
+        const venta = ventasData[idx];
+        if (venta && venta.numero_guia && venta.numero_guia.trim() !== "") {
+            if (!coleccionShipments.includes(venta.numero_guia)) {
+                coleccionShipments.push(venta.numero_guia);
+            }
+        }
+    });
+
+    // 3. Validación de colección vacía
+    if (coleccionShipments.length === 0) {
+        alert("⚠️ No se encontraron números de envío válidos en las filas seleccionadas.");
+        return;
+    }
+
+    console.log(`🖨️ Colección de envíos lista (${coleccionShipments.length} ítems):`, coleccionShipments);
+
+    // 4. Une los IDs mediante comas para la consulta masiva de Mercado Libre
+    const shipmentIdsParam = coleccionShipments.join(',');
+
+    // 5. Opción A: Abre la descarga PDF directa llamando al servidor local/backend
+    window.open(`/descargar_rotulos?shipments=${shipmentIdsParam}`, '_blank');
+}

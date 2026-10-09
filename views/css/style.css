@@ -32,6 +32,10 @@ button {
     font-size: 14px;
 }
 
+button:hover {
+    outline: 1px solid #d9534f;
+}
+
 .btn-toggle {
     background-color: #007bff;
     color: white;
@@ -42,6 +46,10 @@ button {
     color: white;
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.btn-rojo {
+    background-color: #d9534f;
 }
 
 .btn-generate.active {

@@ -185,7 +185,7 @@ function cargarTabla() {
             <td><label for="${index}">${variantesHtml}</label></td>
             <td><label for="${index}">${cantidadesHtml}</label></td>
             <td><label for="${index}">${v.detalles || ''}</label></td>
-            <td><label for="${index}"><span class="badge badge-${v.estado_rotulo}">${v.texto_rotulo}</span></label></td>
+            <td><button class="button badge-${v.estado_rotulo}">${v.texto_rotulo}</button></td>
         </tr>`;
     });
 }

@@ -5,8 +5,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Constantes de cálculo de precios
-COEF_PRE = 1.35
-COEF_CLA = 1.25
+COEF_PRE = 1.37
+COEF_CLA = 1.27
 COSTO_FIJO = 1340
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,7 +22,7 @@ MELI_TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 REDIRECT_URI = "https://www.google.com"
 
 # URL base para el servicio de precios (reemplaza por la URL real)
-PRICER_API_URL = "http://localhost:8009/api.Dragonfish/"
+PRICER_API_URL = "http://192.168.1.4:8008/api.Dragonfish/"
 
 CUENTAS = {}
 

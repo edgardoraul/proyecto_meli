@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 # Constantes de cálculo de precios
 COEF_PRE = 1.37
 COEF_CLA = 1.27
-COSTO_FIJO = 1340
+COSTO_FIJO = 1400
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"

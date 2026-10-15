@@ -53,7 +53,7 @@ def DescargaPrecios() -> bool:
         headers = {
             "IdCliente": str(id_cliente),
             "Authorization": str(jw_token),
-            "BaseDeDatos": DBPRECIOS[0],
+            "BaseDeDatos": DBPRECIOS[1],
             "Content-Type": "application/json",
         }
 

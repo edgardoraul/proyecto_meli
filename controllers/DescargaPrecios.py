@@ -33,7 +33,8 @@ def DescargaPrecios() -> bool:
             )
             return True
 
-    archivo_token = DATA_DIR / "token_pricer_meli.json"
+    archivo_token = DATA_DIR / "token_pricer_meli.json" # Del Servidor
+
 
     if not archivo_token.exists():
         logger.error(f"❌ No existe el archivo de token en: {archivo_token}")

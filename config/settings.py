@@ -22,7 +22,8 @@ MELI_TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 REDIRECT_URI = "https://www.google.com"
 
 # URL base para el servicio de precios (reemplaza por la URL real)
-PRICER_API_URL = "http://192.168.1.4:8008/api.Dragonfish/"
+PRICER_API_URL = "http://192.168.1.4:8008/api.Dragonfish/" # Del Server
+
 
 CUENTAS = {}
 

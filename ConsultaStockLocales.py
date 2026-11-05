@@ -1,3 +1,5 @@
+# ConsultaStockLocales.py
+
 """
 Punto de entrada principal para la consulta y descarga de stock entre locales
 desde la API de Dragonfish (Pricer).

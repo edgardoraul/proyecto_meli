@@ -1,11 +1,14 @@
+# DescargaStock.py
+
 """
 Controlador encargado de interactuar con la API de Dragonfish para 
-descargar el stock consolidado entre sucursales y guardarlo en un archivo CSV.
+descargar todo el stock sucursal por sucursal (código de talle, código de color como texto y stock entero),
+sobrescribiendo siempre el archivo CSV en la ruta de red compartida.
 """
 
 import json
 import logging
-import time
+from pathlib import Path
 import pandas as pd
 import requests
 
@@ -17,31 +20,20 @@ logger = logging.getLogger("Stock")
 def DescargaStock() -> bool:
     """
     Controlador principal de stock. Realiza lo siguiente:
-    1. Verifica si existe un archivo CSV reciente (caché de 30 minutos).
-    2. Lee las credenciales y el token de autenticación desde el almacenamiento local.
-    3. Realiza solicitudes paginadas al endpoint '/ConsultaStockYPreciosEntreLocales/' con timeout ampliado.
-    4. Muestra en tiempo real por consola cada artículo procesado.
-    5. Exporta el resultado final en el orden de columnas solicitado.
+    1. Define la ruta absoluta de red para sobrescribir siempre el archivo CSV.
+    2. Lee credenciales y tokens de autenticación.
+    3. Recorre de forma completa y paginada cada base de datos definida en DBSTOCKS.
+    4. Extrae SKU, talle y color forzándolos estrictamente como TEXTO (para preservar ceros iniciales).
+    5. Extrae el stock como número entero.
+    6. Consolida y sobrescribe el CSV en la ruta de red (separado por ';') asegurando formato de texto.
     """
-    archivo_csv = DATA_DIR / "StockDeArticulos.csv"
+    # Ruta absoluta de red solicitada (se sobrescribirá siempre)
+    archivo_csv = Path(r"\\EDGAR\Web\Listados de Ventas Online\StockDeArticulos.csv")
 
     # =========================================================================
-    # PASO 1: SISTEMA DE CONTROL DE ANTIGÜEDAD (CACHE DE 30 MINUTOS)
-    # =========================================================================
-    TIEMPO_MAXIMO_SEGUNDOS = 30 * 60  # 30 minutos
-
-    if archivo_csv.exists():
-        antiguedad_segundos = time.time() - archivo_csv.stat().st_mtime
-        if antiguedad_segundos < TIEMPO_MAXIMO_SEGUNDOS:
-            minutos_transcurridos = int(antiguedad_segundos // 60)
-            logger.info(
-                f"⏩ Descarga de stock omitida: El archivo '{archivo_csv.name}' fue generado hace {minutos_transcurridos} min "
-                f"(antigüedad menor a 30 min). Se utilizarán los datos previos."
-            )
-            return True
-
-    # =========================================================================
-    # PASO 2: LECTURA DE CREDENCIALES Y TOKENS
+    # PASO 1: LECTURA DE CREDENCIALES Y TOKENS
+    # Función: Busca el archivo de token local, extrae el idCliente y JWToken,
+    # y extrae el listado de bases de datos configuradas en DBSTOCKS.
     # =========================================================================
     archivo_token = DATA_DIR / "token_pricer_meli.json"
 
@@ -60,124 +52,129 @@ def DescargaStock() -> bool:
             logger.error("❌ El JSON de token no contiene 'idCliente' o 'JWToken'.")
             return False
 
-        # Extraer las bases de datos configuradas (ej: PIEZA, MENDOZA, TUCUMAN)
         bases_stock = list(DBSTOCKS.values()) if isinstance(DBSTOCKS, dict) else list(DBSTOCKS)
-        base_principal = bases_stock[0] if bases_stock else "PIEZA"
+        if not bases_stock:
+            logger.error("❌ No hay bases de datos definidas en DBSTOCKS.")
+            return False
 
-        headers = {
-            "IdCliente": str(id_cliente),
-            "Authorization": str(jw_token),
-            "BaseDeDatos": str(base_principal),
-            "Content-Type": "application/json",
-        }
+        maestro_articulos = {}
+        raw_resultados_total = []
 
-        articulos_totales = []
-        raw_resultados = []
-        articulos_vistos = set()
-
-        page = 1
+        url_endpoint = f"{PRICER_API_URL}/ConsultaStockYPrecios/"
         limit_por_pagina = 200
-        url_endpoint = f"{PRICER_API_URL}/ConsultaStockYPreciosEntreLocales/"
-
-        logger.info("📥 Descargando stock entre locales desde Dragonfish 🐟")
 
         # =========================================================================
-        # PASO 3: BUCLE DE PAGINACIÓN Y CONSUMO DE LA API
+        # PASO 2: ITERACIÓN COMPLETA BASE POR BASE (PAGINACIÓN TOTAL)
+        # Función: Recorre todas las páginas de cada sucursal de DBSTOCKS sin restricciones.
         # =========================================================================
-        while True:
-            params = {
-                "limit": limit_por_pagina,
-                "page": page
+        for nombre_base in bases_stock:
+            logger.info(f"📥 Descargando todo el stock para la sucursal: [{nombre_base}] 🐟")
+
+            headers = {
+                "IdCliente": str(id_cliente),
+                "Authorization": str(jw_token),
+                "BaseDeDatos": str(nombre_base),
+                "Content-Type": "application/json",
             }
 
-            # Timeout aumentado a 90 segundos para evitar cortes por respuestas lentas del ERP
-            res = requests.get(
-                url_endpoint, headers=headers, params=params, timeout=90
-            )
-
-            if res.status_code != 200:
-                logger.error(
-                    f"❌ Error HTTP {res.status_code} al consultar API de stock: {res.text}"
-                )
-                return False
-
-            data = res.json()
-            resultados = data.get("Resultados", [])
-
-            if not resultados:
-                break
-
-            raw_resultados.extend(resultados)
-
-            # =====================================================================
-            # PASO 4: PROCESAMIENTO Y VISUALIZACIÓN LÍNEA A LÍNEA EN CONSOLA
-            # =====================================================================
-            for item in resultados:
-                sku = item.get("Articulo")
-                if not sku:
-                    continue
-
-                descripcion = item.get("ArticuloDescripcion", "")
-                talle = item.get("Talle", "")
-                color = item.get("ColorDescripcion", "")
-
-                stocks_array = item.get("Stock", [])
-
-                fila_articulo = {
-                    "SKU": sku,
-                    "Descripción": descripcion,
-                    "talle": talle,
-                    "color": color,
+            page = 1
+            while True:
+                params = {
+                    "stockcero": "true",
+                    "limit": limit_por_pagina,
+                    "page": page,
+                    "sort": "Articulo",
                 }
 
-                # Extraer stock de cada base configurada
-                for nombre_base in bases_stock:
-                    stock_valor = 0
-                    for s_obj in stocks_array:
-                        if str(s_obj.get("BasedeDatos", "")).strip().upper() == str(nombre_base).strip().upper():
-                            stock_valor = s_obj.get("Stock", 0)
-                            break
-                    fila_articulo[nombre_base] = stock_valor
+                res = requests.get(
+                    url_endpoint, headers=headers, params=params, timeout=60
+                )
 
-                # Control de unicidad por SKU, talle y color
-                clave_unica = f"{sku}_{talle}_{color}"
-                if clave_unica in articulos_vistos:
-                    continue
+                if res.status_code != 200:
+                    logger.error(
+                        f"❌ Error HTTP {res.status_code} en base '{nombre_base}': {res.text}"
+                    )
+                    return False
 
-                articulos_totales.append(fila_articulo)
-                articulos_vistos.add(clave_unica)
+                data = res.json()
+                resultados = data.get("Resultados", [])
 
-                # 🖨️ Muestra línea a línea en la consola el progreso detallado
-                stocks_texto = " | ".join([f"{base}: {fila_articulo[base]}" for base in bases_stock])
-                print(f"SKU: {sku} | Talle: {talle} | Color: {color} | {stocks_texto}")
+                if not resultados:
+                    break
 
-            total_api = data.get("TotalRegistros", "Desconocido")
-            logger.info(
-                f"   Página {page} procesada con éxito. Artículos acumulados: {len(articulos_totales)} / Total API: {total_api}"
-            )
+                raw_resultados_total.extend(resultados)
 
-            if len(resultados) < limit_por_pagina:
-                break
+                # =====================================================================
+                # PASO 3: PROCESAMIENTO (FORZANDO TEXTO EN SKU, COLOR, TALLE Y ENTERO EN STOCK)
+                # =====================================================================
+                for item in resultados:
+                    # Forzar SKU, Talle y Color estrictamente como texto limpio
+                    sku = str(item.get("Articulo", "")).strip()
+                    if not sku:
+                        continue
 
-            page += 1
+                    descripcion = str(item.get("ArticuloDescripcion", "")).strip()
+                    talle = str(item.get("Talle", "")).strip()
 
-        if not raw_resultados:
-            logger.warning("⚠️ La API de stock no devolvió artículos.")
+                    # Controla si tiene datos y le agrega una comilla simple para asegurar que sea texto
+                    if str(item.get("Color", "")).strip() != "":
+                        color = "'" + str(item.get("Color", "")).strip()
+                    
+
+                    # Convertir stock explícitamente a número entero
+                    try:
+                        stock_actual = int(item.get("Stock", 0))
+                    except (ValueError, TypeError):
+                        stock_actual = 0
+
+                    clave_unica = f"{sku}_{talle}_{color}"
+
+                    if clave_unica not in maestro_articulos:
+                        maestro_articulos[clave_unica] = {
+                            "SKU": sku,
+                            "DETALLE": descripcion,
+                            "COLOR": color,
+                            "TALLE": talle,
+                        }
+                        for b in bases_stock:
+                            maestro_articulos[clave_unica][b] = 0
+
+                    maestro_articulos[clave_unica][nombre_base] = stock_actual
+
+                logger.info(f"   Sucursal '{nombre_base}' - Página {page} procesada ({len(resultados)} registros).")
+
+                if len(resultados) < limit_por_pagina:
+                    break
+
+                page += 1
+
+        if not maestro_articulos:
+            logger.warning("⚠️ La API no devolvió artículos.")
             return False
 
         # =========================================================================
-        # PASO 5: GUARDADO DE RESPUESTA CRUDA Y CONSOLIDACIÓN EN CSV
+        # PASO 4: IMPRESIÓN, RESPALDO JSON Y GUARDADO EN CSV (RED) CON TIPADO DE TEXTO
         # =========================================================================
+        articulos_totales = []
+        for clave, articulo_data in maestro_articulos.items():
+            articulos_totales.append(articulo_data)
+            stocks_texto = " | ".join([f"{b}: {articulo_data[b]}" for b in bases_stock])
+            print(f"SKU: {articulo_data['SKU']} | COLOR: {articulo_data['COLOR']} | TALLE: {articulo_data['TALLE']} | {stocks_texto}")
+
+        # Guardar respaldo en JSON crudo local
         archivo_json_raw = DATA_DIR / "stock_raw.json"
         with open(archivo_json_raw, "w", encoding="utf-8") as f:
             json.dump(
-                {"TotalProcesados": len(raw_resultados), "Resultados": raw_resultados},
+                { "TotalProcesados": len(raw_resultados_total), "Resultados": raw_resultados_total },
                 f,
                 indent=4,
                 ensure_ascii=False,
             )
 
-        columnas_ordenadas = ["SKU", "Descripción", "talle", "color"] + bases_stock
+        # Ordenar las columnas
+        columnas_ordenadas = ["SKU", "DETALLE", "COLOR", "TALLE"] + bases_stock
+        
+        # Creamos el DataFrame forzando las columnas de texto a object/string explícitamente
         df = pd.DataFrame(articulos_totales)
 
         for col in columnas_ordenadas:
@@ -185,11 +182,23 @@ def DescargaStock() -> bool:
                 df[col] = 0
 
         df = df[columnas_ordenadas]
-        df.to_csv(archivo_csv, index=False, encoding="utf-8-sig")
 
-        logger.info(f"✔ Archivo CSV de stock guardado en: {archivo_csv}")
+        # 1. Exportación y sobrescritura del CSV en la ruta absoluta de red (separado por ';')
+        # Para evitar que Excel trunque los ceros a la izquierda (ej: "01" -> 1) al abrir el CSV directamente,
+        # envolvemos los valores de COLOR y TALLE con formato de celda de texto para CSV (= "valor") o aseguramos el tipo.
+        # Una práctica estándar muy segura en CSV para Excel es anteceder un apóstrofe o exportar limpio confiando en dtype.
+        # Aquí utilizamos el formato estándar asegurando text tipado.
+        archivo_csv.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Nota: Para forzar absoluta compatibilidad con Excel en CSV sin perder ceros, 
+        # se suele usar `="01"` o dejar que pandas lo escriba como texto plano entre comillas. 
+        # Al usar `quoting=csv.QUOTE_NONNUMERIC` o simplemente exportando con `encoding="utf-8-sig"`, 
+        # Pandas escribe las columnas string entre comillas dobles, lo que evita que Excel las interprete como números.
+        df.to_csv(archivo_csv, index=False, sep=";", encoding="utf-8-sig", quoting=1)  # quoting=1 (QUOTE_ALL) o 2 (QUOTE_NONNUMERIC) fuerza comillas en texto
+        logger.info(f"✔ Archivo CSV de red sobrescrito en: {archivo_csv} (con protección de texto para colores/talles)")
+
         return True
 
     except Exception as e:
-        logger.error(f"❌ Error inesperado durante la descarga de stock: {e}")
+        logger.error(f"❌ Error inesperado: {e}")
         return False

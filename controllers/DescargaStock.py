@@ -115,11 +115,11 @@ def DescargaStock() -> bool:
 
                     descripcion = str(item.get("ArticuloDescripcion", "")).strip()
                     talle = str(item.get("Talle", "")).strip()
-
-                    # Controla si tiene datos y le agrega una comilla simple para asegurar que sea texto
-                    if str(item.get("Color", "")).strip() != "":
-                        color = "'" + str(item.get("Color", "")).strip()
                     
+                    
+                    # Asignación segura de color para evitar UnboundLocalError
+                    color_val = item.get("Color")
+                    color = "'" + str(color_val).strip() if color_val is not None else ""
 
                     # Convertir stock explícitamente a número entero
                     try:
@@ -159,13 +159,14 @@ def DescargaStock() -> bool:
         for clave, articulo_data in maestro_articulos.items():
             articulos_totales.append(articulo_data)
             stocks_texto = " | ".join([f"{b}: {articulo_data[b]}" for b in bases_stock])
+            # Nota: Usamos articulo_data['COLOR'] y articulo_data['TALLE'] para evitar NameError
             print(f"SKU: {articulo_data['SKU']} | COLOR: {articulo_data['COLOR']} | TALLE: {articulo_data['TALLE']} | {stocks_texto}")
 
         # Guardar respaldo en JSON crudo local
         archivo_json_raw = DATA_DIR / "stock_raw.json"
         with open(archivo_json_raw, "w", encoding="utf-8") as f:
             json.dump(
-                { "TotalProcesados": len(raw_resultados_total), "Resultados": raw_resultados_total },
+                {"TotalProcesados": len(raw_resultados_total), "Resultados": raw_resultados_total},
                 f,
                 indent=4,
                 ensure_ascii=False,
@@ -173,8 +174,6 @@ def DescargaStock() -> bool:
 
         # Ordenar las columnas
         columnas_ordenadas = ["SKU", "DETALLE", "COLOR", "TALLE"] + bases_stock
-        
-        # Creamos el DataFrame forzando las columnas de texto a object/string explícitamente
         df = pd.DataFrame(articulos_totales)
 
         for col in columnas_ordenadas:
@@ -184,17 +183,8 @@ def DescargaStock() -> bool:
         df = df[columnas_ordenadas]
 
         # 1. Exportación y sobrescritura del CSV en la ruta absoluta de red (separado por ';')
-        # Para evitar que Excel trunque los ceros a la izquierda (ej: "01" -> 1) al abrir el CSV directamente,
-        # envolvemos los valores de COLOR y TALLE con formato de celda de texto para CSV (= "valor") o aseguramos el tipo.
-        # Una práctica estándar muy segura en CSV para Excel es anteceder un apóstrofe o exportar limpio confiando en dtype.
-        # Aquí utilizamos el formato estándar asegurando text tipado.
         archivo_csv.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Nota: Para forzar absoluta compatibilidad con Excel en CSV sin perder ceros, 
-        # se suele usar `="01"` o dejar que pandas lo escriba como texto plano entre comillas. 
-        # Al usar `quoting=csv.QUOTE_NONNUMERIC` o simplemente exportando con `encoding="utf-8-sig"`, 
-        # Pandas escribe las columnas string entre comillas dobles, lo que evita que Excel las interprete como números.
-        df.to_csv(archivo_csv, index=False, sep=";", encoding="utf-8-sig", quoting=1)  # quoting=1 (QUOTE_ALL) o 2 (QUOTE_NONNUMERIC) fuerza comillas en texto
+        df.to_csv(archivo_csv, index=False, sep=";", encoding="utf-8-sig", quoting=1)
         logger.info(f"✔ Archivo CSV de red sobrescrito en: {archivo_csv} (con protección de texto para colores/talles)")
 
         return True

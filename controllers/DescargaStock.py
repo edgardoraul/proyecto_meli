@@ -119,7 +119,10 @@ def DescargaStock() -> bool:
                     
                     # Asignación segura de color para evitar UnboundLocalError
                     color_val = item.get("Color")
-                    color = "'" + str(color_val).strip() if color_val is not None else ""
+                    if color_val != "":
+                        color = "'" + str(color_val).strip()
+                    else:
+                        color = ""
 
                     # Convertir stock explícitamente a número entero
                     try:

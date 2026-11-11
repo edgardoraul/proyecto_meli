@@ -3,11 +3,12 @@
 """
 Controlador encargado de interactuar con la API de Dragonfish para 
 descargar todo el stock sucursal por sucursal (código de talle, código de color como texto y stock entero),
-sobrescribiendo siempre el archivo CSV en la ruta de red compartida.
+validando una caché de 1 hora antes de sobrescribir el archivo CSV en la ruta de red compartida.
 """
 
 import json
 import logging
+import time
 from pathlib import Path
 import pandas as pd
 import requests
@@ -20,18 +21,36 @@ logger = logging.getLogger("Stock")
 def DescargaStock() -> bool:
     """
     Controlador principal de stock. Realiza lo siguiente:
-    1. Define la ruta absoluta de red para sobrescribir siempre el archivo CSV.
-    2. Lee credenciales y tokens de autenticación.
+    1. Verifica si el archivo CSV en la red tiene menos de 1 hora de antigüedad (caché).
+    2. Si expiró o no existe, lee credenciales y tokens de autenticación.
     3. Recorre de forma completa y paginada cada base de datos definida en DBSTOCKS.
     4. Extrae SKU, talle y color forzándolos estrictamente como TEXTO (para preservar ceros iniciales).
     5. Extrae el stock como número entero.
     6. Consolida y sobrescribe el CSV en la ruta de red (separado por ';') asegurando formato de texto.
     """
-    # Ruta absoluta de red solicitada (se sobrescribirá siempre)
+    # Ruta absoluta de red solicitada
     archivo_csv = Path(r"\\EDGAR\Web\Listados de Ventas Online\StockDeArticulos.csv")
 
     # =========================================================================
-    # PASO 1: LECTURA DE CREDENCIALES Y TOKENS
+    # PASO 1: SISTEMA DE CONTROL DE ANTIGÜEDAD (CACHE DE 1 HORA)
+    # Función: Verifica si el archivo CSV ya existe en la red y si su última 
+    # modificación fue hace menos de 60 minutos (3600 segundos). Si se cumple, 
+    # omite la consulta a la API.
+    # =========================================================================
+    TIEMPO_MAXIMO_SEGUNDOS = 60 * 60  # 1 hora
+
+    if archivo_csv.exists():
+        antiguedad_segundos = time.time() - archivo_csv.stat().st_mtime
+        if antiguedad_segundos < TIEMPO_MAXIMO_SEGUNDOS:
+            minutos_transcurridos = int(antiguedad_segundos // 60)
+            logger.info(
+                f"⏩ Descarga de stock omitida: El archivo '{archivo_csv.name}' fue generado hace {minutos_transcurridos} min "
+                f"(antigüedad menor a 1 hora). Se utilizarán los datos previos."
+            )
+            return True
+
+    # =========================================================================
+    # PASO 2: LECTURA DE CREDENCIALES Y TOKENS
     # Función: Busca el archivo de token local, extrae el idCliente y JWToken,
     # y extrae el listado de bases de datos configuradas en DBSTOCKS.
     # =========================================================================
@@ -64,7 +83,7 @@ def DescargaStock() -> bool:
         limit_por_pagina = 200
 
         # =========================================================================
-        # PASO 2: ITERACIÓN COMPLETA BASE POR BASE (PAGINACIÓN TOTAL)
+        # PASO 3: ITERACIÓN COMPLETA BASE POR BASE (PAGINACIÓN TOTAL)
         # Función: Recorre todas las páginas de cada sucursal de DBSTOCKS sin restricciones.
         # =========================================================================
         for nombre_base in bases_stock:
@@ -105,7 +124,7 @@ def DescargaStock() -> bool:
                 raw_resultados_total.extend(resultados)
 
                 # =====================================================================
-                # PASO 3: PROCESAMIENTO (FORZANDO TEXTO EN SKU, COLOR, TALLE Y ENTERO EN STOCK)
+                # PASO 4: PROCESAMIENTO (FORZANDO TEXTO EN SKU, COLOR, TALLE Y ENTERO EN STOCK)
                 # =====================================================================
                 for item in resultados:
                     # Forzar SKU, Talle y Color estrictamente como texto limpio
@@ -116,8 +135,7 @@ def DescargaStock() -> bool:
                     descripcion = str(item.get("ArticuloDescripcion", "")).strip()
                     talle = str(item.get("Talle", "")).strip()
                     
-                    
-                    # Asignación segura de color para evitar UnboundLocalError
+                    # Asignación segura de color
                     color_val = item.get("Color")
                     if color_val != "":
                         color = "'" + str(color_val).strip()
@@ -156,13 +174,12 @@ def DescargaStock() -> bool:
             return False
 
         # =========================================================================
-        # PASO 4: IMPRESIÓN, RESPALDO JSON Y GUARDADO EN CSV (RED) CON TIPADO DE TEXTO
+        # PASO 5: IMPRESIÓN, RESPALDO JSON Y GUARDADO EN CSV (RED) CON TIPADO DE TEXTO
         # =========================================================================
         articulos_totales = []
         for clave, articulo_data in maestro_articulos.items():
             articulos_totales.append(articulo_data)
             stocks_texto = " | ".join([f"{b}: {articulo_data[b]}" for b in bases_stock])
-            # Nota: Usamos articulo_data['COLOR'] y articulo_data['TALLE'] para evitar NameError
             print(f"SKU: {articulo_data['SKU']} | COLOR: {articulo_data['COLOR']} | TALLE: {articulo_data['TALLE']} | {stocks_texto}")
 
         # Guardar respaldo en JSON crudo local
